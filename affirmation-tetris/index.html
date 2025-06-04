@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全肯定テトリス</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #canvasWrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            overflow: hidden;
+            padding: 10px;
+        }
+        
+        #canvas {
+            border: 3px solid #444;
+            background: #000;
+            box-shadow: 0 0 20px rgba(0,255,0,0.5);
+        }
+        
+        #threeCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 10;
+        }
+        
+        #titleScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            z-index: 20;
+        }
+        
+        #titleScreen h1 {
+            font-size: 3em;
+            margin: 0;
+            color: #0f0;
+            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        #startButton {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.5em;
+            background: #0f0;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        
+        #startButton:hover {
+            background: #0ff;
+            box-shadow: 0 0 20px #0ff;
+        }
+        
+        #controls {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 35;
+            border-top: 2px solid #0f0;
+        }
+        
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            font-size: 32px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.9);
+            color: #0f0;
+            border: 3px solid #0f0;
+            border-radius: 10px;
+            cursor: pointer;
+            touch-action: none;
+            user-select: none;
+            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+            box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.3), 0 0 15px rgba(0, 255, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .control-btn:active {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: inset 0 0 30px rgba(0, 255, 0, 0.6), 0 0 25px rgba(0, 255, 0, 0.8);
+            transform: scale(0.95);
+        }
+        
+        #leftBtn, #rightBtn, #downBtn, #rotateBtn {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            font-size: 28px;
+        }
+        
+        #controlsInner {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .praiseText {
+            position: absolute;
+            font-size: 2em;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 15;
+            animation: slideText 3s linear;
+        }
+        
+        @keyframes slideText {
+            from { transform: translateX(100vw); }
+            to { transform: translateX(-100%); }
+        }
+        
+        .emoji {
+            position: absolute;
+            font-size: 3em;
+            pointer-events: none;
+            z-index: 15;
+            animation: fall 3s linear;
+        }
+        
+        @keyframes fall {
+            from { 
+                transform: translateY(-100px) rotate(0deg);
+                opacity: 1;
+            }
+            to { 
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        #gameClear {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5em;
+            color: #fff;
+            text-shadow: 0 0 20px #0f0, 0 0 40px #0f0, 0 0 60px #0f0;
+            z-index: 25;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+        
+        .goodJob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'MS Gothic', monospace;
+            font-size: 1.5em;
+            color: #0f0;
+            white-space: pre;
+            text-align: center;
+            z-index: 30;
+            display: none;
+            text-shadow: 0 0 10px #0f0;
+        }
+        
+        .thoughtBubble {
+            position: absolute;
+            font-size: 1.8em;
+            color: #fff;
+            white-space: nowrap;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .emphasisMessage {
+            position: absolute;
+            font-family: 'MS Gothic', monospace;
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #ffff00;
+            white-space: pre;
+            text-align: center;
+            z-index: 22;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-shadow: 
+                0 0 10px #ff0,
+                0 0 20px #ff0,
+                0 0 30px #ff0,
+                0 0 40px #f90,
+                2px 2px 4px rgba(0,0,0,0.9);
+            line-height: 1.2;
+            transform-origin: center;
+            animation: emphasisPulse 2.5s ease-in-out;
+        }
+        
+        @keyframes emphasisPulse {
+            0% {
+                transform: scale(0) rotate(-5deg);
+                opacity: 0;
+            }
+            15% {
+                transform: scale(1.3) rotate(3deg);
+                opacity: 1;
+            }
+            30% {
+                transform: scale(0.9) rotate(-2deg);
+            }
+            45% {
+                transform: scale(1.1) rotate(1deg);
+            }
+            60%, 80% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.8) rotate(0deg);
+                opacity: 0;
+            }
+        }
+        
+        .emphasisMessage::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            right: -20px;
+            bottom: -20px;
+            background: radial-gradient(circle, rgba(255,255,0,0.3) 0%, transparent 70%);
+            z-index: -1;
+            animation: glowPulse 2.5s ease-in-out;
+        }
+        
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+        
+        .emphasisParticle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #ff0;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 23;
+            box-shadow: 0 0 10px #ff0;
+        }
+        
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.8);
+            z-index: 25;
+        }
+        
+        #gameOverScreen h2 {
+            font-size: 3em;
+            color: #f00;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="titleScreen">
+            <h1>全肯定テトリス</h1>
+            <button id="startButton">START</button>
+        </div>
+        <div id="canvasWrapper">
+            <canvas id="canvas"></canvas>
+        </div>
+        <canvas id="threeCanvas"></canvas>
+        <div id="gameClear">GAME CLEAR</div>
+        <div class="goodJob" id="goodJobArt"></div>
+        <div id="controls">
+            <div id="controlsInner">
+                <button id="leftBtn" class="control-btn">←</button>
+                <button id="downBtn" class="control-btn">↓</button>
+                <button id="rotateBtn" class="control-btn">↻</button>
+                <button id="rightBtn" class="control-btn">→</button>
+            </div>
+        </div>
+        <div id="gameOverScreen">
+            <h2>GAME OVER</h2>
+            <button onclick="location.reload()">もう一度</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game constants
+        const BLOCK_SIZE = 30;
+        const ROWS = 20;
+        const COLS = 10;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = COLS * BLOCK_SIZE;
+        canvas.height = ROWS * BLOCK_SIZE;
+        
+        // Center canvas
+        canvas.style.position = 'absolute';
+        canvas.style.left = '50%';
+        canvas.style.top = '50%';
+        canvas.style.transform = 'translate(-50%, -50%)';
+        
+        // Adjust canvas size for mobile
+        function adjustCanvasSize() {
+            if ('ontouchstart' in window) {
+                const maxHeight = window.innerHeight - 170; // Leave space for controls
+                const maxWidth = window.innerWidth - 40;
+                const scale = Math.min(maxWidth / (COLS * BLOCK_SIZE), maxHeight / (ROWS * BLOCK_SIZE));
+                const newBlockSize = Math.floor(BLOCK_SIZE * scale);
+                
+                canvas.width = COLS * newBlockSize;
+                canvas.height = ROWS * newBlockSize;
+                canvas.style.width = canvas.width + 'px';
+                canvas.style.height = canvas.height + 'px';
+                
+                // Update block size for drawing
+                canvas.dataset.blockSize = newBlockSize;
+            }
+        }
+        
+        adjustCanvasSize();
+        window.addEventListener('resize', adjustCanvasSize);
+        
+        // Game state
+        let board = [];
+        let currentPiece = null;
+        let gameWon = false;
+        let gameOver = false;
+        
+        // Audio context
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // L-piece definition (upside down L)
+        const L_PIECE = {
+            shape: [
+                [1, 0],
+                [1, 0],
+                [1, 1]
+            ],
+            color: '#ff8800'
+        };
+        
+        // Initialize board
+        function initBoard() {
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            
+            // Create pre-filled board with L-shaped gap
+            // Fill bottom 3 rows except for the L-shaped gap
+            for (let row = ROWS - 3; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    board[row][col] = 1;
+                }
+            }
+            // Create L-shaped gap (correct L shape)
+            board[ROWS - 3][3] = 0;
+            board[ROWS - 3][4] = 0;
+            board[ROWS - 2][4] = 0;
+            board[ROWS - 1][4] = 0;
+        }
+        
+        // Create new piece
+        function createPiece() {
+            currentPiece = {
+                shape: L_PIECE.shape,
+                color: L_PIECE.color,
+                x: 4,
+                y: 0,
+                rotation: 0
+            };
+        }
+        
+        // Draw block
+        function drawBlock(x, y, color) {
+            const blockSize = parseInt(canvas.dataset.blockSize) || BLOCK_SIZE;
+            ctx.fillStyle = color;
+            ctx.fillRect(x * blockSize, y * blockSize, blockSize - 2, blockSize - 2);
+            
+            // Add shine effect
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(x * blockSize + 2, y * blockSize + 2, blockSize/3, blockSize/3);
+        }
+        
+        // Draw board
+        function drawBoard() {
+            const blockSize = parseInt(canvas.dataset.blockSize) || BLOCK_SIZE;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = '#222';
+            for (let i = 0; i <= ROWS; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * blockSize);
+                ctx.lineTo(canvas.width, i * blockSize);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= COLS; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * blockSize, 0);
+                ctx.lineTo(i * blockSize, canvas.height);
+                ctx.stroke();
+            }
+            
+            // Draw filled blocks
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if (board[row][col]) {
+                        drawBlock(col, row, '#666');
+                    }
+                }
+            }
+            
+            // Draw current piece
+            if (currentPiece) {
+                for (let row = 0; row < currentPiece.shape.length; row++) {
+                    for (let col = 0; col < currentPiece.shape[row].length; col++) {
+                        if (currentPiece.shape[row][col]) {
+                            drawBlock(
+                                currentPiece.x + col,
+                                currentPiece.y + row,
+                                currentPiece.color
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Check collision
+        function checkCollision(piece, offsetX = 0, offsetY = 0) {
+            for (let row = 0; row < piece.shape.length; row++) {
+                for (let col = 0; col < piece.shape[row].length; col++) {
+                    if (piece.shape[row][col]) {
+                        const newX = piece.x + col + offsetX;
+                        const newY = piece.y + row + offsetY;
+                        
+                        if (newX < 0 || newX >= COLS || newY >= ROWS) {
+                            return true;
+                        }
+                        
+                        if (newY >= 0 && board[newY][newX]) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        
+        // Lock piece
+        function lockPiece() {
+            for (let row = 0; row < currentPiece.shape.length; row++) {
+                for (let col = 0; col < currentPiece.shape[row].length; col++) {
+                    if (currentPiece.shape[row][col]) {
+                        const y = currentPiece.y + row;
+                        const x = currentPiece.x + col;
+                        if (y >= 0) {
+                            board[y][x] = 1;
+                        }
+                    }
+                }
+            }
+            
+            // Check if all bottom 3 rows are filled
+            let allFilled = true;
+            for (let row = ROWS - 3; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if (board[row][col] === 0) {
+                        allFilled = false;
+                        break;
+                    }
+                }
+                if (!allFilled) break;
+            }
+            
+            if (allFilled) {
+                gameWon = true;
+                // Epic impact effect
+                playSound(150, 0.5, 'sawtooth'); // Deep impact sound
+                setTimeout(() => playSound(300, 0.3, 'square'), 100);
+                setTimeout(() => playSound(600, 0.3, 'sine'), 200);
+                
+                // Screen shake effect
+                const shakeCanvas = () => {
+                    let shakeTime = 0;
+                    const shakeInterval = setInterval(() => {
+                        const intensity = (1 - shakeTime / 1000) * 10;
+                        canvas.style.transform = `translate(-50%, -50%) translate(${(Math.random() - 0.5) * intensity}px, ${(Math.random() - 0.5) * intensity}px)`;
+                        shakeTime += 50;
+                        if (shakeTime >= 1000) {
+                            clearInterval(shakeInterval);
+                            canvas.style.transform = 'translate(-50%, -50%)';
+                        }
+                    }, 50);
+                };
+                shakeCanvas();
+                
+                // Flash effect
+                const flash = document.createElement('div');
+                flash.style.position = 'absolute';
+                flash.style.top = '0';
+                flash.style.left = '0';
+                flash.style.width = '100%';
+                flash.style.height = '100%';
+                flash.style.background = 'white';
+                flash.style.opacity = '0.8';
+                flash.style.zIndex = '30';
+                flash.style.pointerEvents = 'none';
+                document.getElementById('gameContainer').appendChild(flash);
+                
+                setTimeout(() => {
+                    flash.style.transition = 'opacity 0.5s';
+                    flash.style.opacity = '0';
+                    setTimeout(() => flash.remove(), 500);
+                }, 100);
+                
+                // Start celebration after impact
+                setTimeout(startCelebration, 1500);
+            } else {
+                gameOver = true;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+            }
+        }
+        
+        // Move piece
+        function movePiece(dx, dy) {
+            if (!checkCollision(currentPiece, dx, dy)) {
+                currentPiece.x += dx;
+                currentPiece.y += dy;
+                return true;
+            }
+            return false;
+        }
+        
+        // Rotate piece
+        function rotatePiece() {
+            const rotated = [];
+            const shape = currentPiece.shape;
+            
+            for (let col = 0; col < shape[0].length; col++) {
+                rotated[col] = [];
+                for (let row = shape.length - 1; row >= 0; row--) {
+                    rotated[col].push(shape[row][col]);
+                }
+            }
+            
+            const oldShape = currentPiece.shape;
+            currentPiece.shape = rotated;
+            
+            if (checkCollision(currentPiece)) {
+                currentPiece.shape = oldShape;
+            }
+        }
+        
+        // Play sound effect
+        function playSound(frequency, duration, type = 'sine') {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        // Create praise text
+        function createPraiseText() {
+            const praises = [
+                'すげええええ！！！',
+                'うおおおおお！！！',
+                '天才だ！！！',
+                '神プレイ！！！',
+                'やばい！！！',
+                '最高！！！',
+                'パーフェクト！！！',
+                '完璧すぎる！！！',
+                'レジェンド！！！',
+                'ヤバすぎ！！！',
+                'カッコよすぎ！！！',
+                '史上最高！！！'
+            ];
+            
+            const text = document.createElement('div');
+            text.className = 'praiseText';
+            text.textContent = praises[Math.floor(Math.random() * praises.length)];
+            text.style.top = Math.random() * 80 + 10 + '%';
+            text.style.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            text.style.fontSize = (2 + Math.random() * 2) + 'em';
+            document.body.appendChild(text);
+            
+            setTimeout(() => text.remove(), 3000);
+        }
+        
+        // Create falling emoji
+        function createEmoji() {
+            const emojis = ['😊', '🎁', '🎉', '💰', '⭐', '🏆', '👑', '💎', '🌟', '✨', '🎊', '🎈'];
+            
+            const emoji = document.createElement('div');
+            emoji.className = 'emoji';
+            emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            emoji.style.left = Math.random() * 100 + '%';
+            emoji.style.animationDuration = (2 + Math.random() * 2) + 's';
+            document.body.appendChild(emoji);
+            
+            setTimeout(() => emoji.remove(), 4000);
+        }
+        
+        // Create thought bubble
+        function createThoughtBubble() {
+            const thoughts = [
+                '😆.｡oO(ゲーム神…)',
+                '🤯.｡oO(天才か？)',
+                '🥺.｡oO(指どうなってる…)',
+                '😳.｡oO(手元見せて…)',
+                '😎.｡oO(強すぎワロタ)',
+                '😮‍💨.｡oO(反応速ッ…)',
+                '🤤.｡oO(魅せプ助かる…)',
+                '🙄.｡oO(格が違う…)',
+                '😵‍💫.｡oO(別ゲーしてる…)',
+                '🤯.｡oO(勝ち確やん…)'
+            ];
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'thoughtBubble';
+            bubble.textContent = thoughts[Math.floor(Math.random() * thoughts.length)];
+            
+            // Temporarily add to measure width
+            bubble.style.visibility = 'hidden';
+            document.body.appendChild(bubble);
+            const bubbleWidth = bubble.offsetWidth;
+            const bubbleHeight = bubble.offsetHeight;
+            bubble.style.visibility = 'visible';
+            
+            // Calculate safe position
+            const maxX = window.innerWidth - bubbleWidth - 20;
+            const maxY = window.innerHeight - bubbleHeight - 20;
+            const x = Math.random() * (maxX - 20) + 20;
+            const y = Math.random() * (maxY - 40) + 20;
+            
+            bubble.style.left = x + 'px';
+            bubble.style.top = y + 'px';
+            
+            setTimeout(() => {
+                bubble.style.opacity = '1';
+                setTimeout(() => {
+                    bubble.style.opacity = '0';
+                    setTimeout(() => bubble.remove(), 500);
+                }, 2000);
+            }, 100);
+        }
+        
+        // Create emphasis message
+        function createEmphasisMessage() {
+            const messages = [
+                '＿人人人人人人人人＿\n＞　消し方が芸術　＜\n￣Y^Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人人人＿\n＞　テトリス職人　＜\n￣Y^Y^Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人＿\n＞　3列消し神　＜\n￣Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人人＿\n＞　組みが天才　＜\n￣Y^Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人人＿\n＞　積みが美しい　＜\n￣Y^Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人人人＿\n＞　逆転の一手　＜\n￣Y^Y^Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人＿\n＞　魅せ消し助かる　＜\n￣Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人人＿\n＞　消すの速ッ！　＜\n￣Y^Y^Y^Y^Y^Y^Y￣',
+                '＿人人人人人人人人＿\n＞　Tスピン職人　＜\n￣Y^Y^Y^Y^Y^Y^Y￣'
+            ];
+            
+            const message = document.createElement('div');
+            message.className = 'emphasisMessage';
+            message.textContent = messages[Math.floor(Math.random() * messages.length)];
+            
+            // Temporarily add to measure dimensions
+            message.style.visibility = 'hidden';
+            document.body.appendChild(message);
+            const messageWidth = message.offsetWidth;
+            const messageHeight = message.offsetHeight;
+            message.style.visibility = 'visible';
+            
+            // Calculate safe position
+            const maxX = ((window.innerWidth - messageWidth) / window.innerWidth) * 100;
+            const maxY = ((window.innerHeight - messageHeight) / window.innerHeight) * 100;
+            const x = Math.random() * (maxX - 10) + 5;
+            const y = Math.random() * (maxY - 10) + 5;
+            
+            message.style.left = x + '%';
+            message.style.top = y + '%';
+            
+            // Create background effects
+            const bgEffect = document.createElement('div');
+            bgEffect.style.position = 'absolute';
+            bgEffect.style.left = (x - 5) + '%';
+            bgEffect.style.top = (y - 5) + '%';
+            bgEffect.style.width = '300px';
+            bgEffect.style.height = '100px';
+            bgEffect.style.background = 'radial-gradient(ellipse at center, rgba(255,150,0,0.6) 0%, rgba(255,255,0,0.3) 40%, transparent 70%)';
+            bgEffect.style.filter = 'blur(20px)';
+            bgEffect.style.zIndex = '21';
+            bgEffect.style.pointerEvents = 'none';
+            bgEffect.style.animation = 'emphasisPulse 2.5s ease-in-out';
+            
+            document.body.appendChild(bgEffect);
+            document.body.appendChild(message);
+            
+            // Create particle explosion
+            const particleCount = 20;
+            const particles = [];
+            const centerX = parseFloat(message.style.left);
+            const centerY = parseFloat(message.style.top);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'emphasisParticle';
+                
+                const angle = (i / particleCount) * Math.PI * 2;
+                const speed = 2 + Math.random() * 3;
+                const startX = centerX;
+                const startY = centerY;
+                
+                particle.style.left = startX + '%';
+                particle.style.top = startY + '%';
+                
+                document.body.appendChild(particle);
+                particles.push({
+                    element: particle,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    x: startX,
+                    y: startY,
+                    life: 1
+                });
+            }
+            
+            // Animate particles
+            let particleAnimation = setInterval(() => {
+                particles.forEach((p, index) => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.2; // gravity
+                    p.life -= 0.03;
+                    
+                    p.element.style.left = p.x + '%';
+                    p.element.style.top = p.y + '%';
+                    p.element.style.opacity = p.life;
+                    p.element.style.transform = `scale(${p.life})`;
+                    
+                    if (p.life <= 0) {
+                        p.element.remove();
+                        particles.splice(index, 1);
+                    }
+                });
+                
+                if (particles.length === 0) {
+                    clearInterval(particleAnimation);
+                }
+            }, 30);
+            
+            // Impact sound
+            playSound(200, 0.1, 'square');
+            setTimeout(() => playSound(400, 0.1, 'square'), 50);
+            setTimeout(() => playSound(600, 0.1, 'square'), 100);
+            
+            setTimeout(() => {
+                message.style.opacity = '1';
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    bgEffect.style.opacity = '0';
+                    setTimeout(() => {
+                        message.remove();
+                        bgEffect.remove();
+                    }, 500);
+                }, 2000);
+            }, 100);
+        }
+        
+        // Show good job ASCII art
+        function showGoodJobArt() {
+            const goodJob = document.getElementById('goodJobArt');
+            goodJob.innerHTML = `　　　 ｸﾞｯｼﾞｮﾌﾞ!!
+　（   \`,_ﾉ\` ）  　　　n
+￣　　 　 ＼　 　 （ E）
+ﾌ 　　　 /ヽ ヽ_／／`;
+            goodJob.style.display = 'block';
+            
+            setTimeout(() => {
+                goodJob.style.display = 'none';
+            }, 2000);
+        }
+        
+        // Three.js celebration
+        let scene, camera, renderer, particles = [], fireworks = [], crystals = [], ribbons = [], starField;
+        
+        function initThree() {
+            const threeCanvas = document.getElementById('threeCanvas');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000000, 5, 50);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            camera.position.z = 8;
+            camera.position.y = 2;
+            
+            // Ambient and directional lights
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+            
+            // Create multiple particle systems with different behaviors
+            createMainParticleSystem();
+            createStarField();
+            createFloatingCrystals();
+            createRibbonEffect();
+            
+            fireworks = [];
+        }
+        
+        function createMainParticleSystem() {
+            const particleCount = 3000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+            
+            for (let i = 0; i < particleCount; i++) {
+                // Create spherical distribution
+                const radius = 10 + Math.random() * 5;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                
+                positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = radius * Math.cos(phi);
+                
+                // Rainbow gradient colors
+                const hue = (i / particleCount) * 360;
+                const color = new THREE.Color(`hsl(${hue}, 100%, 70%)`);
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+                
+                sizes[i] = Math.random() * 0.3 + 0.1;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.15,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                sizeAttenuation: true
+            });
+            
+            const particleSystem = new THREE.Points(geometry, material);
+            particleSystem.userData = { type: 'main', rotationSpeed: 0.0005 };
+            scene.add(particleSystem);
+            particles.push(particleSystem);
+        }
+        
+        function createStarField() {
+            const starCount = 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(starCount * 3);
+            const colors = new Float32Array(starCount * 3);
+            
+            for (let i = 0; i < starCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 100;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
+                
+                const brightness = 0.5 + Math.random() * 0.5;
+                colors[i * 3] = brightness;
+                colors[i * 3 + 1] = brightness;
+                colors[i * 3 + 2] = brightness;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            
+            starField = new THREE.Points(geometry, material);
+            starField.userData = { type: 'stars' };
+            scene.add(starField);
+        }
+        
+        function createFloatingCrystals() {
+            const crystalGroup = new THREE.Group();
+            
+            for (let i = 0; i < 15; i++) {
+                const geometry = new THREE.OctahedronGeometry(0.3 + Math.random() * 0.3, 0);
+                const hue = Math.random() * 360;
+                const material = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color(`hsl(${hue}, 100%, 50%)`),
+                    transparent: true,
+                    opacity: 0.7,
+                    shininess: 100,
+                    specular: 0xffffff,
+                    side: THREE.DoubleSide
+                });
+                
+                const crystal = new THREE.Mesh(geometry, material);
+                crystal.position.set(
+                    (Math.random() - 0.5) * 20,
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 20
+                );
+                
+                crystal.userData = {
+                    initialPos: crystal.position.clone(),
+                    rotationSpeed: {
+                        x: (Math.random() - 0.5) * 0.02,
+                        y: (Math.random() - 0.5) * 0.02,
+                        z: (Math.random() - 0.5) * 0.02
+                    },
+                    floatSpeed: Math.random() * 0.5 + 0.5,
+                    phase: Math.random() * Math.PI * 2
+                };
+                
+                crystalGroup.add(crystal);
+            }
+            
+            scene.add(crystalGroup);
+            crystals.push(crystalGroup);
+        }
+        
+        function createRibbonEffect() {
+            const ribbonCount = 5;
+            
+            for (let r = 0; r < ribbonCount; r++) {
+                const points = [];
+                const segments = 50;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const angle = t * Math.PI * 4;
+                    const radius = 5 + Math.sin(t * Math.PI) * 3;
+                    
+                    points.push(new THREE.Vector3(
+                        Math.cos(angle) * radius,
+                        (t - 0.5) * 10,
+                        Math.sin(angle) * radius
+                    ));
+                }
+                
+                const curve = new THREE.CatmullRomCurve3(points);
+                const tubeGeometry = new THREE.TubeGeometry(curve, 100, 0.2, 8, false);
+                
+                const hue = (r / ribbonCount) * 360;
+                const material = new THREE.MeshPhongMaterial({
+                    color: new THREE.Color(`hsl(${hue}, 100%, 60%)`),
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                });
+                
+                const ribbon = new THREE.Mesh(tubeGeometry, material);
+                ribbon.userData = {
+                    rotationSpeed: 0.002 + r * 0.001,
+                    phase: r * (Math.PI * 2 / ribbonCount)
+                };
+                
+                scene.add(ribbon);
+                ribbons.push(ribbon);
+            }
+        }
+        
+        class Firework {
+            constructor() {
+                this.particles = [];
+                this.origin = new THREE.Vector3(
+                    (Math.random() - 0.5) * 8,
+                    -3,
+                    (Math.random() - 0.5) * 4
+                );
+                this.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.02,
+                    0.1 + Math.random() * 0.05,
+                    0
+                );
+                this.exploded = false;
+                this.life = 0;
+                
+                // Create launch particle
+                const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+                const material = new THREE.MeshBasicMaterial({ 
+                    color: new THREE.Color(Math.random(), Math.random(), Math.random())
+                });
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.copy(this.origin);
+                scene.add(this.mesh);
+            }
+            
+            update() {
+                this.life++;
+                
+                if (!this.exploded) {
+                    if (this.mesh && this.velocity) {
+                        this.mesh.position.add(this.velocity);
+                        this.velocity.y -= 0.002;
+                        
+                        if (this.velocity.y < 0) {
+                            this.explode();
+                        }
+                    }
+                } else {
+                    for (let i = this.particles.length - 1; i >= 0; i--) {
+                        const particle = this.particles[i];
+                        if (particle && particle.userData && particle.userData.velocity) {
+                            particle.position.x += particle.userData.velocity.x;
+                            particle.position.y += particle.userData.velocity.y;
+                            particle.position.z += particle.userData.velocity.z;
+                            particle.userData.velocity.y -= 0.001;
+                            
+                            if (particle.material) {
+                                particle.material.opacity -= 0.02;
+                                
+                                if (particle.material.opacity <= 0) {
+                                    scene.remove(particle);
+                                    this.particles.splice(i, 1);
+                                }
+                            }
+                        }
+                    }
+                    
+                    return this.particles.length === 0;
+                }
+                
+                return false;
+            }
+            
+            explode() {
+                this.exploded = true;
+                if (this.mesh) {
+                    scene.remove(this.mesh);
+                }
+                
+                const particleCount = 60;
+                const colors = [
+                    new THREE.Color('#ff006e'),
+                    new THREE.Color('#fb5607'),
+                    new THREE.Color('#ffbe0b'),
+                    new THREE.Color('#8338ec'),
+                    new THREE.Color('#3a86ff')
+                ];
+                const baseColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const geometry = new THREE.SphereGeometry(0.04, 6, 6);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: baseColor,
+                        transparent: true,
+                        opacity: 1
+                    });
+                    const particle = new THREE.Mesh(geometry, material);
+                    
+                    if (this.mesh) {
+                        particle.position.copy(this.mesh.position);
+                    }
+                    
+                    // Create spiral explosion pattern
+                    const angle = (i / particleCount) * Math.PI * 2 * 3;
+                    const force = 0.1 + Math.random() * 0.05;
+                    const elevation = (Math.random() - 0.5) * 0.15;
+                    
+                    particle.userData = {
+                        velocity: {
+                            x: Math.cos(angle) * force,
+                            y: elevation + 0.03,
+                            z: Math.sin(angle) * force
+                        }
+                    };
+                    
+                    scene.add(particle);
+                    this.particles.push(particle);
+                }
+                
+                // Enhanced sound
+                playSound(1000 + Math.random() * 600, 0.2, 'sine');
+                setTimeout(() => playSound(500 + Math.random() * 300, 0.3, 'triangle'), 50);
+            }
+        }
+        
+        function animateThree() {
+            if (!gameWon) return;
+            
+            requestAnimationFrame(animateThree);
+            
+        function animateThree() {
+            if (!gameWon || !renderer) return;
+            
+            requestAnimationFrame(animateThree);
+            
+            const time = Date.now() * 0.001;
+            
+            // Animate main particles with complex movements
+            particles.forEach((particleSystem) => {
+                if (particleSystem && particleSystem.geometry && particleSystem.geometry.attributes.position) {
+                    const rotSpeed = particleSystem.userData.rotationSpeed || 0.0005;
+                    particleSystem.rotation.x += rotSpeed;
+                    particleSystem.rotation.y += rotSpeed * 2;
+                    
+                    const positions = particleSystem.geometry.attributes.position.array;
+                    const colors = particleSystem.geometry.attributes.color.array;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        // Create pulsing, swirling motion
+                        const originalRadius = Math.sqrt(
+                            positions[i] * positions[i] + 
+                            positions[i + 1] * positions[i + 1] + 
+                            positions[i + 2] * positions[i + 2]
+                        );
+                        
+                        const pulse = 1 + Math.sin(time * 2 + i * 0.01) * 0.1;
+                        const swirl = Math.sin(time + i * 0.005) * 0.02;
+                        
+                        positions[i] *= pulse;
+                        positions[i + 1] += swirl;
+                        positions[i + 2] *= pulse;
+                        
+                        // Color shifting
+                        const hueShift = (time * 20 + i) % 360;
+                        const color = new THREE.Color(`hsl(${hueShift}, 100%, 70%)`);
+                        colors[i] = color.r;
+                        colors[i + 1] = color.g;
+                        colors[i + 2] = color.b;
+                    }
+                    
+                    particleSystem.geometry.attributes.position.needsUpdate = true;
+                    particleSystem.geometry.attributes.color.needsUpdate = true;
+                }
+            });
+            
+            // Animate star field
+            if (starField) {
+                starField.rotation.y += 0.0001;
+                starField.rotation.x += 0.00005;
+            }
+            
+            // Animate crystals
+            crystals.forEach((crystalGroup) => {
+                crystalGroup.children.forEach((crystal) => {
+                    if (crystal.userData) {
+                        crystal.rotation.x += crystal.userData.rotationSpeed.x;
+                        crystal.rotation.y += crystal.userData.rotationSpeed.y;
+                        crystal.rotation.z += crystal.userData.rotationSpeed.z;
+                        
+                        const floatY = Math.sin(time * crystal.userData.floatSpeed + crystal.userData.phase) * 0.5;
+                        crystal.position.y = crystal.userData.initialPos.y + floatY;
+                        
+                        // Pulsing scale
+                        const scale = 1 + Math.sin(time * 3 + crystal.userData.phase) * 0.2;
+                        crystal.scale.setScalar(scale);
+                    }
+                });
+            });
+            
+            // Animate ribbons
+            ribbons.forEach((ribbon, index) => {
+                if (ribbon.userData) {
+                    ribbon.rotation.y += ribbon.userData.rotationSpeed;
+                    ribbon.position.y = Math.sin(time * 0.5 + ribbon.userData.phase) * 2;
+                    
+                    // Material color animation
+                    const hue = ((time * 30) + (index * 72)) % 360;
+                    ribbon.material.color.setHSL(hue / 360, 1, 0.6);
+                }
+            });
+            
+            // Camera movement
+            camera.position.x = Math.sin(time * 0.3) * 2;
+            camera.position.y = 2 + Math.sin(time * 0.2) * 1;
+            camera.lookAt(0, 0, 0);
+            
+            // Update fireworks
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                if (fireworks[i] && fireworks[i].update && fireworks[i].update()) {
+                    fireworks.splice(i, 1);
+                }
+            }
+            
+            // Add new fireworks
+            if (Math.random() < 0.06 && fireworks.length < 8) {
+                fireworks.push(new Firework());
+            }
+            
+            // Render with error handling
+            try {
+                renderer.render(scene, camera);
+            } catch (e) {
+                console.error('Render error:', e);
+            }
+        }
+        }
+        
+        function startCelebration() {
+            canvas.style.display = 'none';
+            document.getElementById('threeCanvas').style.display = 'block';
+            
+            initThree();
+            animateThree();
+            
+            // Epic victory music - Happy and upbeat melody
+            const playVictoryMusic = () => {
+                // Create a happy, celebratory melody
+                const melody = [
+                    {note: 523.25, duration: 150}, // C5
+                    {note: 523.25, duration: 150}, // C5
+                    {note: 783.99, duration: 150}, // G5
+                    {note: 783.99, duration: 150}, // G5
+                    {note: 880.00, duration: 150}, // A5
+                    {note: 880.00, duration: 150}, // A5
+                    {note: 783.99, duration: 300}, // G5
+                    
+                    {note: 698.46, duration: 150}, // F5
+                    {note: 698.46, duration: 150}, // F5
+                    {note: 659.25, duration: 150}, // E5
+                    {note: 659.25, duration: 150}, // E5
+                    {note: 587.33, duration: 150}, // D5
+                    {note: 587.33, duration: 150}, // D5
+                    {note: 523.25, duration: 300}, // C5
+                    
+                    {note: 783.99, duration: 150}, // G5
+                    {note: 783.99, duration: 150}, // G5
+                    {note: 698.46, duration: 150}, // F5
+                    {note: 698.46, duration: 150}, // F5
+                    {note: 659.25, duration: 150}, // E5
+                    {note: 659.25, duration: 150}, // E5
+                    {note: 587.33, duration: 300}, // D5
+                    
+                    {note: 783.99, duration: 150}, // G5
+                    {note: 880.00, duration: 150}, // A5
+                    {note: 783.99, duration: 150}, // G5
+                    {note: 698.46, duration: 150}, // F5
+                    {note: 659.25, duration: 150}, // E5
+                    {note: 587.33, duration: 150}, // D5
+                    {note: 523.25, duration: 450}, // C5
+                ];
+                
+                let noteIndex = 0;
+                let currentTime = 0;
+                
+                const playNote = () => {
+                    if (!gameWon || noteIndex >= melody.length * 2) return;
+                    
+                    const note = melody[noteIndex % melody.length];
+                    
+                    // Main melody
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    
+                    osc.frequency.value = note.note;
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.duration/1000);
+                    
+                    osc.start(audioContext.currentTime);
+                    osc.stop(audioContext.currentTime + note.duration/1000);
+                    
+                    // Harmony
+                    const harmonyOsc = audioContext.createOscillator();
+                    const harmonyGain = audioContext.createGain();
+                    harmonyOsc.connect(harmonyGain);
+                    harmonyGain.connect(audioContext.destination);
+                    
+                    harmonyOsc.frequency.value = note.note * 0.5; // Lower octave
+                    harmonyOsc.type = 'triangle';
+                    harmonyGain.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    harmonyGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.duration/1000);
+                    
+                    harmonyOsc.start(audioContext.currentTime);
+                    harmonyOsc.stop(audioContext.currentTime + note.duration/1000);
+                    
+                    // Bell effect on some notes
+                    if (noteIndex % 4 === 0) {
+                        const bellOsc = audioContext.createOscillator();
+                        const bellGain = audioContext.createGain();
+                        bellOsc.connect(bellGain);
+                        bellGain.connect(audioContext.destination);
+                        
+                        bellOsc.frequency.value = note.note * 2;
+                        bellOsc.type = 'sine';
+                        bellGain.gain.setValueAtTime(0.05, audioContext.currentTime);
+                        bellGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+                        
+                        bellOsc.start(audioContext.currentTime);
+                        bellOsc.stop(audioContext.currentTime + 0.5);
+                    }
+                    
+                    noteIndex++;
+                    setTimeout(playNote, note.duration);
+                };
+                
+                playNote();
+                
+                // Add rhythm drums
+                const playDrums = () => {
+                    if (!gameWon) return;
+                    
+                    // Kick drum
+                    const kick = audioContext.createOscillator();
+                    const kickGain = audioContext.createGain();
+                    kick.connect(kickGain);
+                    kickGain.connect(audioContext.destination);
+                    
+                    kick.frequency.setValueAtTime(150, audioContext.currentTime);
+                    kick.frequency.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    kickGain.gain.setValueAtTime(0.5, audioContext.currentTime);
+                    kickGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    
+                    kick.start(audioContext.currentTime);
+                    kick.stop(audioContext.currentTime + 0.5);
+                    
+                    setTimeout(playDrums, 600);
+                };
+                
+                playDrums();
+            };
+            
+            playVictoryMusic();
+            
+            // Create continuous praise
+            let praiseCount = 0;
+            const praiseInterval = setInterval(() => {
+                if (praiseCount >= 60) {
+                    clearInterval(praiseInterval);
+                    return;
+                }
+                createPraiseText();
+                createEmoji();
+                praiseCount++;
+            }, 300);
+            
+            // Create thought bubbles and emphasis messages
+            let thoughtInterval = setInterval(() => {
+                if (!gameWon) {
+                    clearInterval(thoughtInterval);
+                    return;
+                }
+                createThoughtBubble();
+            }, 1500);
+            
+            let emphasisInterval = setInterval(() => {
+                if (!gameWon) {
+                    clearInterval(emphasisInterval);
+                    return;
+                }
+                createEmphasisMessage();
+            }, 2000);
+            
+            // Show good job art after 10 seconds
+            setTimeout(() => {
+                if (gameWon) {
+                    showGoodJobArt();
+                    // Show again at random times
+                    setTimeout(() => {
+                        if (gameWon && Math.random() < 0.5) showGoodJobArt();
+                    }, 5000);
+                }
+            }, 10000);
+            
+            // End celebration after 20 seconds
+            setTimeout(() => {
+                gameWon = false;
+                location.reload();
+            }, 20000);
+        }
+        
+        // Game loop
+        let dropCounter = 0;
+        let lastTime = 0;
+        
+        function gameLoop(time = 0) {
+            if (gameWon || gameOver) return;
+            
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            
+            dropCounter += deltaTime;
+            
+            if (dropCounter > 800) {
+                if (!movePiece(0, 1)) {
+                    lockPiece();
+                }
+                dropCounter = 0;
+            }
+            
+            drawBoard();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (gameWon || gameOver || !currentPiece) return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    movePiece(-1, 0);
+                    playSound(200, 0.1);
+                    break;
+                case 'ArrowRight':
+                    movePiece(1, 0);
+                    playSound(250, 0.1);
+                    break;
+                case 'ArrowDown':
+                    movePiece(0, 1);
+                    playSound(150, 0.1);
+                    break;
+                case 'ArrowUp':
+                case ' ':
+                    rotatePiece();
+                    playSound(300, 0.1);
+                    break;
+            }
+            drawBoard();
+        });
+        
+        // Start game
+        document.getElementById('startButton').addEventListener('click', () => {
+            document.getElementById('titleScreen').style.display = 'none';
+            
+            // Show controls on mobile
+            if ('ontouchstart' in window) {
+                document.getElementById('controls').style.display = 'flex';
+            }
+            
+            initBoard();
+            createPiece();
+            drawBoard();
+            gameLoop();
+        });
+        
+        // Mobile controls
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const downBtn = document.getElementById('downBtn');
+        const rotateBtn = document.getElementById('rotateBtn');
+        
+        function handleControl(action) {
+            if (gameWon || gameOver || !currentPiece) return;
+            
+            switch(action) {
+                case 'left':
+                    movePiece(-1, 0);
+                    playSound(200, 0.1);
+                    break;
+                case 'right':
+                    movePiece(1, 0);
+                    playSound(250, 0.1);
+                    break;
+                case 'down':
+                    movePiece(0, 1);
+                    playSound(150, 0.1);
+                    break;
+                case 'rotate':
+                    rotatePiece();
+                    playSound(300, 0.1);
+                    break;
+            }
+            drawBoard();
+        }
+        
+        // Touch events
+        leftBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleControl('left');
+        });
+        
+        rightBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleControl('right');
+        });
+        
+        downBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleControl('down');
+        });
+        
+        rotateBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleControl('rotate');
+        });
+        
+        // Mouse events for desktop testing
+        leftBtn.addEventListener('click', () => handleControl('left'));
+        rightBtn.addEventListener('click', () => handleControl('right'));
+        downBtn.addEventListener('click', () => handleControl('down'));
+        rotateBtn.addEventListener('click', () => handleControl('rotate'));
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+    </script>
+</body>
+</html>
