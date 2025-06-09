@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>💩 Space Shooter</title>
+    <!-- 【追加】SF風フォントを読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Orbitron', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #fff;
+        }
+        
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* --- 【追加】タイトル画面のスタイル --- */
+        #titleScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5); /* 背景の星が少し見えるように */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 1.5s ease-out;
+        }
+
+        #titleLogo {
+            text-align: center;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .title-text-small {
+            font-size: 2rem;
+            color: #ff00ff; /* マゼンタ */
+            text-shadow:
+                0 0 5px #fff,
+                0 0 10px #fff,
+                0 0 20px #ff00ff,
+                0 0 30px #ff00ff;
+        }
+
+        .title-text-large {
+            font-size: 5rem;
+            line-height: 1.1;
+            color: #00ffff; /* シアン */
+            text-shadow:
+                0 0 7px #fff,
+                0 0 12px #00ffff,
+                0 0 20px #00ffff;
+        }
+
+        .title-poop {
+            font-size: 12rem; /* 巨大な💩 */
+            line-height: 1;
+            color: #ffc83d;
+            text-shadow: 
+                0 0 10px #fff,
+                0 0 20px #fff,
+                0 0 30px #ffeb3b,
+                0 0 40px #ffeb3b,
+                0 0 55px #ff9800,
+                0 0 70px #ff9800;
+        }
+
+        #startPrompt {
+            position: absolute;
+            bottom: 15%;
+            font-size: 1.5rem;
+            color: #fff;
+            text-shadow: 0 0 10px #fff;
+            animation: blink 2s linear infinite;
+        }
+        
+        /* 浮遊アニメーション */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* 点滅アニメーション */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* --- UIの初期状態 --- */
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            font-size: 20px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+            pointer-events: none;
+            z-index: 10;
+            display: none; /* 【変更】最初は非表示 */
+        }
+        
+        #score {
+            display: none;
+        }
+        
+        #bossInfo {
+            display: none;
+        }
+        
+        #progressBar {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none; /* 【変更】最初は非表示 */
+        }
+        
+        #progressFill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #ffff00);
+            transition: width 0.3s ease, background 0.5s ease;
+            width: 0%;
+        }
+        
+        #progressBar.boss #progressFill {
+            background: linear-gradient(90deg, #ff0000, #ff6600);
+        }
+        
+        #progressText {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            line-height: 20px;
+            font-size: 14px;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        #debug {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- 【追加】タイトル画面のHTML -->
+    <div id="titleScreen">
+        <div id="titleLogo">
+            <div class="title-text-small">3D</div>
+            <div class="title-text-large">KUSO</div>
+            <div class="title-poop">💩</div>
+            <div class="title-text-large">Shooter</div>
+        </div>
+        <div id="startPrompt">TAP TO START</div>
+    </div>
+
+    <div id="ui">
+        <div id="score">SCORE: 0</div>
+        <div id="bossInfo">BOSS HP: <span id="bossHp">20</span>/20</div>
+        <div id="progressBar">
+            <div id="progressFill"></div>
+            <div id="progressText">0 / 1000</div>
+        </div>
+    </div>
+    <div id="debug"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ========================================
+        // 敵クラスの定義（省略）
+        // ========================================
+        
+        // 基底クラス
+        class BaseEnemy extends THREE.Group {
+            constructor() {
+                super();
+                this.health = 100;
+                this.speed = Math.random() * 0.4 + 0.2;
+                this.moveSpeed = 7.5 + Math.random() * 7.5; // 前進速度（1.5倍に変更）
+                this.horizontalSpeed = 0; // 横移動速度
+                this.boundingRadius = 1.5; // 当たり判定の半径
+            }
+
+            update(deltaTime, elapsedTime) {
+                this.rotation.y += this.speed * deltaTime;
+                this.position.z += this.moveSpeed * deltaTime;
+                if (this.horizontalSpeed !== 0) {
+                    this.position.x += Math.sin(elapsedTime * 2) * this.horizontalSpeed * deltaTime;
+                }
+            }
+            
+            takeDamage(amount) {
+                this.health -= amount;
+                this.damageReaction();
+                return this.health <= 0;
+            }
+            
+            damageReaction() {
+                if (this.children.length > 0) {
+                    const originalColors = [];
+                    this.traverse((child) => {
+                        if (child.material && child.material.color) {
+                            originalColors.push({ object: child, color: child.material.color.getHex() });
+                            child.material.color.setHex(0xffffff);
+                        }
+                    });
+                    setTimeout(() => {
+                        originalColors.forEach(item => {
+                            if (item.object.material) item.object.material.color.setHex(item.color);
+                        });
+                    }, 100);
+                }
+                const originalPosition = this.position.clone();
+                const shakeIntensity = 0.3;
+                const shakeDuration = 200;
+                const shakeInterval = 20;
+                let shakeTime = 0;
+                const shakeTimer = setInterval(() => {
+                    shakeTime += shakeInterval;
+                    if (shakeTime >= shakeDuration) {
+                        this.position.copy(originalPosition);
+                        clearInterval(shakeTimer);
+                    } else {
+                        this.position.x = originalPosition.x + (Math.random() - 0.5) * shakeIntensity;
+                        this.position.y = originalPosition.y + (Math.random() - 0.5) * shakeIntensity;
+                    }
+                }, shakeInterval);
+            }
+        }
+        class EnemyTypeA extends BaseEnemy {
+            constructor() { super(); this.name = "EnemyCube"; this.moveSpeed = 12; this.scoreValue = 20; const g = new THREE.BoxGeometry(1.5, 1.5, 1.5); const e = new THREE.EdgesGeometry(g); const m = new THREE.LineBasicMaterial({ color: 0x00ff00 }); this.add(new THREE.LineSegments(e, m)); }
+        }
+        class EnemyTypeB extends BaseEnemy {
+            constructor() { super(); this.name = "EnemyPyramid"; this.moveSpeed = 18; this.horizontalSpeed = 5; this.scoreValue = 20; const g = new THREE.ConeGeometry(1.2, 1.5, 4); const e = new THREE.EdgesGeometry(g); const m = new THREE.LineBasicMaterial({ color: 0xffff00 }); const l = new THREE.LineSegments(e, m); l.rotation.y = Math.PI / 4; this.add(l); }
+            update(d, e) { this.rotation.x += this.speed * d * 0.8; this.rotation.y += this.speed * d * 1.2; this.position.z += this.moveSpeed * d; this.position.x += Math.sin(e * 2) * this.horizontalSpeed * d; }
+        }
+        class EnemyTypeC extends BaseEnemy {
+            constructor() { super(); this.name = "EnemyIcosahedron"; this.moveSpeed = 9; this.scoreValue = 30; this.health = 150; const g = new THREE.IcosahedronGeometry(1.3, 0); const e = new THREE.EdgesGeometry(g); const m = new THREE.LineBasicMaterial({ color: 0xff00ff }); this.add(new THREE.LineSegments(e, m)); }
+        }
+        class EnemyTypeD extends BaseEnemy {
+            constructor() { super(); this.name = "EnemyCompound"; this.speed = 1.2; this.moveSpeed = 10.5; this.scoreValue = 40; this.health = 200; const m = new THREE.LineBasicMaterial({ color: 0x00ffff }); const cG = new THREE.SphereGeometry(0.6, 16, 8); this.core = new THREE.LineSegments(new THREE.EdgesGeometry(cG), m); this.add(this.core); const rG = new THREE.TorusGeometry(1.2, 0.15, 8, 32); this.ring = new THREE.LineSegments(new THREE.EdgesGeometry(rG), m); this.ring.rotation.y = Math.PI / 2; this.add(this.ring); }
+            update(d, e) { this.rotation.y += this.speed * d * 2; this.core.rotation.x += this.speed * d * 3; this.core.rotation.y += this.speed * d * 4; this.ring.rotation.x += this.speed * d * 5; this.position.z += this.moveSpeed * d; }
+        }
+        class EnemyTypeE extends BaseEnemy {
+            constructor() { super(); this.name = "EnemyGate"; this.speed = 2.0; this.moveSpeed = 15; this.scoreValue = 50; this.boundingRadius = 2.0; const m = new THREE.LineBasicMaterial({ color: 0xffa500 }); const rG = new THREE.TorusGeometry(1.5, 0.1, 8, 50); const rE = new THREE.EdgesGeometry(rG); this.ring1 = new THREE.LineSegments(rE, m); this.ring2 = new THREE.LineSegments(rE, m.clone()); this.ring1.rotation.x = Math.PI / 4; this.ring2.rotation.x = -Math.PI / 4; this.add(this.ring1, this.ring2); }
+            update(d, e) { this.ring1.rotation.z += this.speed * d * 3; this.ring2.rotation.z -= this.speed * d * 3; this.rotation.y += this.speed * d; this.position.z += this.moveSpeed * d; }
+        }
+        class BossTypeA extends BaseEnemy {
+            constructor() { super(); this.name = "FortressBoss"; this.health = 20; this.maxHealth = 20; this.speed = 0.2; this.moveSpeed = 0; this.scoreValue = 500; this.boundingRadius = 3.5; this.isBoss = true; const cM = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 }); const cG = new THREE.IcosahedronGeometry(1.5, 1); this.core = new THREE.LineSegments(new THREE.EdgesGeometry(cG), cM); this.add(this.core); const fM = new THREE.LineBasicMaterial({ color: 0xcccccc }); const fG = new THREE.TorusGeometry(3.5, 0.2, 16, 100); this.mainFrame = new THREE.LineSegments(new THREE.EdgesGeometry(fG), fM); this.mainFrame.rotation.x = Math.PI / 2; this.add(this.mainFrame); const aM = new THREE.LineBasicMaterial({ color: 0x00BFFF }); this.armGroup = new THREE.Group(); const aL = 5; for (let i = 0; i < 4; i++) { const arm = new THREE.Group(); const armM = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.2, 0.2, aL)), aM); armM.position.z = aL / 2 + 1.5; const sM = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.ConeGeometry(1, 1.5, 6)), aM); sM.position.z = aL + 1.5; sM.rotation.x = Math.PI / 2; arm.add(armM, sM); arm.rotation.y = (i / 4) * Math.PI * 2; this.armGroup.add(arm); } this.add(this.armGroup); }
+            update(d, e) { this.rotation.z += this.speed * d * 0.2; const s = 1 + Math.sin(e * 2) * 0.1; this.core.scale.set(s, s, s); this.core.rotation.x += this.speed * d; this.core.rotation.y += this.speed * d * 0.7; this.mainFrame.rotation.y += this.speed * d * 0.3; this.armGroup.rotation.y -= this.speed * d * 0.8; this.armGroup.children.forEach(arm => { arm.children[1].rotation.z += this.speed * d * 2; }); this.position.x = Math.sin(e * 0.5) * 5; this.position.y = Math.sin(e * 0.3) * 2; this.position.z = -30 + Math.sin(e * 0.4) * 10; }
+        }
+
+        // ========================================
+        // グローバル変数
+        // ========================================
+        let scene, camera, renderer;
+        let stars = [];
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let score = 0;
+        let gameTime = 0;
+        let enemySpawnTimer = 0;
+        let boss = null;
+        let bossMode = false;
+        let gameEnded = false;
+        let hitStopActive = false;
+        let isGameStarted = false; // 【追加】ゲーム開始フラグ
+        
+        // ========================================
+        // オーディオシステム（省略）
+        // ========================================
+        let audioContext;
+        let bgmGainNode;
+        let currentBgm = null;
+        let activeBgmNodes = [];
+        function initAudioSystem() { audioContext = new (window.AudioContext || window.webkitAudioContext)(); bgmGainNode = audioContext.createGain(); bgmGainNode.gain.value = 0.3; bgmGainNode.connect(audioContext.destination); }
+        function playShootSound() { if (!audioContext) return; const o = audioContext.createOscillator(); const g = audioContext.createGain(); o.type = 'square'; o.frequency.setValueAtTime(300, audioContext.currentTime); o.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.1); g.gain.setValueAtTime(0.3, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1); o.connect(g); g.connect(audioContext.destination); o.start(); o.stop(audioContext.currentTime + 0.1); }
+        function playHitSound() { if (!audioContext) return; const bS = audioContext.sampleRate * 0.05; const b = audioContext.createBuffer(1, bS, audioContext.sampleRate); const o = b.getChannelData(0); for (let i = 0; i < bS; i++) o[i] = Math.random() * 2 - 1; const n = audioContext.createBufferSource(); n.buffer = b; const f = audioContext.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1000; f.Q.value = 10; const g = audioContext.createGain(); g.gain.setValueAtTime(0.5, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05); n.connect(f); f.connect(g); g.connect(audioContext.destination); n.start(); }
+        function playBossHitSound() { if (!audioContext) return; const o = audioContext.createOscillator(); const g = audioContext.createGain(); o.type = 'square'; o.frequency.setValueAtTime(800, audioContext.currentTime); o.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1); g.gain.setValueAtTime(0.4, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1); o.connect(g); g.connect(audioContext.destination); o.start(); o.stop(audioContext.currentTime + 0.1); const lO = audioContext.createOscillator(); const lG = audioContext.createGain(); lO.type = 'sawtooth'; lO.frequency.value = 80; lG.gain.setValueAtTime(0.5, audioContext.currentTime); lG.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15); lO.connect(lG); lG.connect(audioContext.destination); lO.start(); lO.stop(audioContext.currentTime + 0.15); }
+        function playDestroySound() { if (!audioContext) return; for (let i = 0; i < 3; i++) { const o = audioContext.createOscillator(); const g = audioContext.createGain(); o.type = 'sawtooth'; o.frequency.value = 150 - i * 30; g.gain.setValueAtTime(0.4, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3); o.connect(g); g.connect(audioContext.destination); o.start(audioContext.currentTime + i * 0.02); o.stop(audioContext.currentTime + 0.3); } const bS = audioContext.sampleRate * 0.2; const b = audioContext.createBuffer(1, bS, audioContext.sampleRate); const out = b.getChannelData(0); for (let i = 0; i < bS; i++) out[i] = (Math.random() * 2 - 1) * Math.exp(-i / bS * 5); const n = audioContext.createBufferSource(); n.buffer = b; const g = audioContext.createGain(); g.gain.value = 0.3; n.connect(g); g.connect(audioContext.destination); n.start(); }
+        function playBossAppearSound() { if (!audioContext) return; const o = audioContext.createOscillator(); const g = audioContext.createGain(); const l = audioContext.createOscillator(); const lG = audioContext.createGain(); o.type = 'sawtooth'; o.frequency.value = 50; l.type = 'sine'; l.frequency.value = 4; lG.gain.value = 20; l.connect(lG); lG.connect(o.frequency); g.gain.setValueAtTime(0, audioContext.currentTime); g.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.5); g.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 1.5); g.gain.linearRampToValueAtTime(0, audioContext.currentTime + 2); o.connect(g); g.connect(audioContext.destination); o.start(); l.start(); o.stop(audioContext.currentTime + 2); l.stop(audioContext.currentTime + 2); }
+        function playBossDestroySound() { if (!audioContext) return; stopAllBGM(); for (let i = 0; i < 5; i++) { setTimeout(() => { if (!audioContext) return; const o = audioContext.createOscillator(); const g = audioContext.createGain(); o.type = 'square'; o.frequency.setValueAtTime(200 - i * 20, audioContext.currentTime); o.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.5); g.gain.setValueAtTime(0.6, audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5); o.connect(g); g.connect(audioContext.destination); o.start(); o.stop(audioContext.currentTime + 0.5); }, i * 100); } }
+        let normalBgmTimer; let normalBgmStep = 0; const BPM = 130; const noteLength = 60 / BPM / 4;
+        const freqs = { 'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88, 'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'C3': 130.81, 'D3': 146.83, 'F3': 174.61, 'G3': 196.00 };
+        const melodySeq = [ 'G4', null, 'A4', null, 'C5', null, 'A4', null, 'G4', null, 'E4', null, 'D4', null, 'E4', null, 'C4', null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 'A4', null, 'C5', null, 'D5', null, 'C5', null, 'A4', null, 'G4', null, 'E4', null, 'G4', null, 'F4', null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 'G4', null, 'A4', null, 'C5', null, 'A4', null, 'G4', null, 'E4', null, 'D4', null, 'E4', null, 'C4', null, 'D4', 'E4', 'G4', 'E4', 'D4', null, 'C4', null, null, null, null, null, null, null, 'G4', null, 'A4', null, 'C5', null, 'E5', null, 'D5', null, 'C5', null, 'A4', null, 'G4', null, 'C5', null, null, null, 'G4', null, null, null, 'E4', null, null, null, 'C4', null, null, null ];
+        function startNormalBGM() { if (currentBgm === 'normal') return; stopAllBGM(); currentBgm = 'normal'; normalBgmStep = 0; playNextNormalBGMNote(); }
+        function playNextNormalBGMNote() { if (currentBgm !== 'normal' || !audioContext) return; const mN = melodySeq[normalBgmStep]; if (mN) playNormalBGMNote(audioContext.currentTime, freqs[mN]); normalBgmStep++; if (normalBgmStep >= melodySeq.length) normalBgmStep = 0; normalBgmTimer = setTimeout(playNextNormalBGMNote, noteLength * 1000); }
+        function playNormalBGMNote(t, f) { const o = audioContext.createOscillator(); const nG = audioContext.createGain(); o.type = 'sine'; o.frequency.value = f; const aT = 0.02; const dT = noteLength * 4; nG.gain.setValueAtTime(0, t); nG.gain.linearRampToValueAtTime(0.2, t + aT); nG.gain.exponentialRampToValueAtTime(0.001, t + dT); o.connect(nG); nG.connect(bgmGainNode); o.start(t); o.stop(t + dT); activeBgmNodes.push(o); o.onended = () => { activeBgmNodes = activeBgmNodes.filter(n => n !== o); }; }
+        let bossBgmTimer; const bossTempo = 138; const bossLoopDuration = 20;
+        function startBossBGM() { if (currentBgm === 'boss') return; stopAllBGM(); currentBgm = 'boss'; scheduleBossLoop(audioContext.currentTime); }
+        function scheduleBossLoop(sT) { if (currentBgm !== 'boss' || !audioContext) return; const lET = sT + bossLoopDuration; const bN = [65.41, 65.41, 98.00, 77.78]; const nT = 60.0 / bossTempo; const bO = audioContext.createOscillator(); bO.type = 'sawtooth'; const bG = audioContext.createGain(); bG.connect(bgmGainNode); bO.connect(bG); let cT = sT; let nI = 0; while (cT < lET) { const nD = nT * 4; const n = bN[nI % bN.length]; bO.frequency.setValueAtTime(n, cT); bG.gain.setValueAtTime(0, cT); bG.gain.linearRampToValueAtTime(0.2, cT + 0.05); bG.gain.linearRampToValueAtTime(0, cT + nD - 0.05); cT += nD; nI++; } bO.start(sT); bO.stop(lET); activeBgmNodes.push(bO); bO.onended = () => { activeBgmNodes = activeBgmNodes.filter(n => n !== bO); }; bossBgmTimer = setTimeout(() => scheduleBossLoop(lET), (bossLoopDuration - 0.1) * 1000); }
+        const ClearBGM = { play: function() { stopAllBGM(); currentBgm = 'clear'; const nF = { 'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94, 'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88, 'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'G5': 783.99, 'A5': 880.00, 'B5': 987.77, 'C6': 1046.50 }; const d = { tempo: 160, parts: [ { waveform: 'sawtooth', melody: [ [null, 1], ['G5', 0.75], ['A5', 0.25], ['G5', 0.5], ['F5', 0.5], ['E5', 1], ['C5', 1], ['C5', 0.5], ['D5', 0.5], ['E5', 0.5], ['F5', 0.5], ['G5', 1], ['G5', 1], ['G5', 0.75], ['A5', 0.25], ['G5', 0.5], ['F5', 0.5], ['E5', 1], ['C6', 1], ['B5', 0.5], ['A5', 0.5], ['G5', 0.5], ['F5', 0.5], ['E5', 1], [null, 1], ['A5', 1], ['G5', 1], ['F5', 1], ['E5', 1], ['D5', 1], ['E5', 0.5], ['F5', 0.5], ['G5', 2], ['C6', 2], ['B5', 0.5], ['A5', 0.5], ['G5', 1], ['C6', 4] ] } ] }; const mG = audioContext.createGain(); mG.gain.setValueAtTime(0.1, audioContext.currentTime); mG.connect(bgmGainNode); const sPB = 60.0 / d.tempo; const sT = audioContext.currentTime + 0.1; d.parts.forEach(p => { let pCT = sT; p.melody.forEach(notes => { const n = notes[0]; const dIB = notes[1]; const dIS = dIB * sPB; if (n && nF[n]) { const gN = audioContext.createGain(); gN.gain.setValueAtTime(0, pCT); gN.gain.linearRampToValueAtTime(1.0, pCT + 0.01); gN.gain.linearRampToValueAtTime(0.7, pCT + 0.1); gN.gain.setValueAtTime(0.7, pCT + dIS - 0.1); gN.gain.linearRampToValueAtTime(0, pCT + dIS); gN.connect(mG); const o = audioContext.createOscillator(); o.type = p.waveform; o.frequency.value = nF[n]; o.connect(gN); o.start(pCT); o.stop(pCT + dIS + 0.1); activeBgmNodes.push(o); o.onended = () => { activeBgmNodes = activeBgmNodes.filter(node => node !== o); }; } pCT += dIS; }); }); } };
+        function stopAllBGM() { currentBgm = null; if (normalBgmTimer) clearTimeout(normalBgmTimer); if (bossBgmTimer) clearTimeout(bossBgmTimer); normalBgmTimer = null; bossBgmTimer = null; activeBgmNodes.forEach(node => { try { node.stop(); } catch (e) {} }); activeBgmNodes = []; }
+        const GAME_CONFIG = { starCount: 3000, starSpeed: 0.5, bulletSpeed: 50, cameraFOV: 75, cameraZ: 5, enemySpawnInterval: 2.0, maxEnemies: 5, spawnDistance: -50, spawnRangeX: 15, spawnRangeY: 10 };
+        function getEnemySpawnInterval(s) { if (s >= 300) return 0.6; if (s >= 200) return 0.8; if (s >= 100) return 1.0; return 1.3; }
+        function getMaxEnemies(s) { if (s >= 300) return 11; if (s >= 200) return 9; if (s >= 100) return 7; return 5; }
+
+        // ========================================
+        // 初期化関数
+        // ========================================
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000000, 50, 200);
+
+            camera = new THREE.PerspectiveCamera(GAME_CONFIG.cameraFOV, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = GAME_CONFIG.cameraZ;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            // 【変更】Canvasをbodyに直接追加せず、IDを付与して管理
+            renderer.domElement.id = "gameCanvas";
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+
+            createStarField();
+            initAudioSystem();
+            setupEventListeners();
+            
+            // 【変更】ゲーム本編のオブジェクトは準備するだけ
+            for (let i = 0; i < 3; i++) {
+                spawnEnemy();
+            }
+
+            // 【変更】タイトル画面のループを開始
+            animateTitle();
+        }
+
+        // 【追加】タイトル画面用のアニメーションループ
+        function animateTitle() {
+            if (isGameStarted) return; // ゲームが始まったらこのループは止める
+            requestAnimationFrame(animateTitle);
+            
+            // 背景の星だけを動かす
+            const deltaTime = 1 / 60;
+            updateStarField(deltaTime);
+            
+            renderer.render(scene, camera);
+        }
+
+        // 【追加】ゲーム開始処理
+        function startGame() {
+            if (isGameStarted) return;
+            isGameStarted = true;
+
+            // オーディオ再開
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            // タイトル画面をフェードアウト
+            const titleScreen = document.getElementById('titleScreen');
+            titleScreen.style.opacity = '0';
+            setTimeout(() => {
+                titleScreen.style.display = 'none';
+            }, 1500); // CSSのtransitionと合わせる
+
+            // ゲームUIを表示
+            document.getElementById('ui').style.display = 'block';
+            document.getElementById('progressBar').style.display = 'block';
+            
+            // 通常BGMを開始
+            startNormalBGM();
+
+            // ゲーム本編のループを開始
+            animate();
+        }
+
+        // ========================================
+        // スターフィールドの作成（省略）
+        // ========================================
+        function createStarField() { const g = new THREE.BufferGeometry(); const v = []; const s = []; for (let i = 0; i < GAME_CONFIG.starCount; i++) { v.push((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 200, -Math.random() * 200); s.push(Math.random() * 0.5 + 0.1); } g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setAttribute('size', new THREE.Float32BufferAttribute(s, 1)); const c = document.createElement('canvas'); c.width = 32; c.height = 32; const ctx = c.getContext('2d'); const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16); grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(0.2, 'rgba(255,255,255,0.8)'); grad.addColorStop(0.5, 'rgba(255,255,255,0.2)'); grad.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = grad; ctx.fillRect(0, 0, 32, 32); const t = new THREE.CanvasTexture(c); const m = new THREE.PointsMaterial({ color: 0xffffff, size: 1, sizeAttenuation: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, map: t, alphaTest: 0.01 }); const sF = new THREE.Points(g, m); scene.add(sF); stars.push(sF); }
+
+        // ========================================
+        // 敵の生成と各種エフェクト（省略）
+        // ========================================
+        function spawnEnemy() { const mE = getMaxEnemies(score); if (enemies.length >= mE) return; const eT = getAvailableEnemyTypes(score); const EClass = eT[Math.floor(Math.random() * eT.length)]; const e = new EClass(); e.position.set((Math.random() - 0.5) * GAME_CONFIG.spawnRangeX, (Math.random() - 0.5) * GAME_CONFIG.spawnRangeY, GAME_CONFIG.spawnDistance); scene.add(e); enemies.push(e); }
+        function getAvailableEnemyTypes(s) { const t = [EnemyTypeA, EnemyTypeB]; if (s >= 100) t.push(EnemyTypeC); if (s >= 200) t.push(EnemyTypeD); if (s >= 300) t.push(EnemyTypeE); return t; }
+        function createHitEffect(p) { for (let i = 0; i < 8; i++) { const c = document.createElement('canvas'); c.width = 32; c.height = 32; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, 32, 32); ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💩', 16, 16); const t = new THREE.CanvasTexture(c); const m = new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 1 }); const prt = new THREE.Sprite(m); prt.position.copy(p); prt.scale.set(0.5, 0.5, 1); const a = (i / 8) * Math.PI * 2 + Math.random() * 0.5; prt.userData = { velocity: new THREE.Vector3(Math.cos(a) * 8, Math.sin(a) * 8, (Math.random() - 0.5) * 5), lifetime: 0.6, age: 0, rotationSpeed: Math.random() * 10 - 5 }; scene.add(prt); particles.push(prt); } for (let i = 0; i < 15; i++) { const g = new THREE.BoxGeometry(0.1, 0.3, 0.1); const e = new THREE.EdgesGeometry(g); const m = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 1 }); const s = new THREE.LineSegments(e, m); s.position.copy(p); s.userData = { velocity: new THREE.Vector3((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20), rotation: new THREE.Vector3(Math.random() * 20, Math.random() * 20, Math.random() * 20), lifetime: 0.4, age: 0 }; scene.add(s); particles.push(s); } }
+        function createExplosion(p, c = 0xffff00) { for (let i = 0; i < 20; i++) { const g = new THREE.BoxGeometry(0.2, 0.2, 0.2); const e = new THREE.EdgesGeometry(g); const m = new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 1 }); const prt = new THREE.LineSegments(e, m); prt.position.copy(p); prt.userData = { velocity: new THREE.Vector3((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15), rotation: new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10), lifetime: 0.8, age: 0 }; scene.add(prt); particles.push(prt); } }
+        function checkCollisions() { if (boss && !gameEnded) { for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; if (b.position.distanceTo(boss.position) < boss.boundingRadius * 1.5) { createHitEffect(b.position); playBossHitSound(); const destroyed = boss.takeDamage(1); const hP = (boss.health / boss.maxHealth) * 100; document.getElementById('progressFill').style.width = `${hP}%`; document.getElementById('progressText').textContent = `BOSS HP: ${boss.health} / ${boss.maxHealth}`; if (destroyed) { playBossDestroySound(); triggerHitStop(); setTimeout(() => { createBossDestroyEffect(boss.position); scene.remove(boss); boss = null; bossMode = false; gameEnded = true; score += 500; updateScoreDisplay(); document.getElementById('progressBar').style.display = 'none'; setTimeout(startEndingSequence, 1000); }, 900); } scene.remove(b); bullets.splice(i, 1); } } return; } for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (b.position.distanceTo(e.position) < e.boundingRadius * 1.5) { createHitEffect(b.position); playHitSound(); if (e.takeDamage(100)) { playDestroySound(); score += e.scoreValue; updateScoreDisplay(); const eC = e.children[0] && e.children[0].material ? e.children[0].material.color.getHex() : 0xffffff; createExplosion(e.position, eC); scene.remove(e); enemies.splice(j, 1); } scene.remove(b); bullets.splice(i, 1); break; } } } }
+        function spawnBoss() { if (boss || bossMode) return; bossMode = true; startBossBGM(); playBossAppearSound(); const pB = document.getElementById('progressBar'); pB.classList.add('boss'); document.getElementById('progressFill').style.width = '100%'; document.getElementById('progressText').textContent = 'BOSS HP: 20 / 20'; for (let i = enemies.length - 1; i >= 0; i--) { createExplosion(enemies[i].position, 0xffffff); scene.remove(enemies[i]); } enemies = []; boss = new BossTypeA(); boss.position.set(0, 0, -30); scene.add(boss); createBossAppearEffect(boss.position); }
+        function createBossAppearEffect(p) { for (let i = 0; i < 3; i++) { const rG = new THREE.TorusGeometry(5 + i * 2, 0.1, 8, 50); const rE = new THREE.EdgesGeometry(rG); const m = new THREE.LineBasicMaterial({ color: 0xff0000, transparent: true, opacity: 1 }); const r = new THREE.LineSegments(rE, m); r.position.copy(p); r.userData = { velocity: new THREE.Vector3(0, 0, 0), rotation: new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10), lifetime: 2.0, age: 0, scaleSpeed: 3 }; scene.add(r); particles.push(r); } }
+        function updateScoreDisplay() { document.getElementById('score').textContent = `SCORE: ${score}`; if (!bossMode && !gameEnded) { const p = Math.min(score / 1000, 1) * 100; document.getElementById('progressFill').style.width = `${p}%`; document.getElementById('progressText').textContent = `${score} / 1000`; if (score >= 1000 && !bossMode && !boss && !gameEnded) spawnBoss(); } }
+        function createBullet(x, y) { const v = new THREE.Vector3((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1, 0.5); v.unproject(camera); const d = v.sub(camera.position).normalize(); const dist = -camera.position.z / d.z; const p = camera.position.clone().add(d.multiplyScalar(dist)); const c = document.createElement('canvas'); c.width = 64; c.height = 64; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, 64, 64); ctx.font = '48px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💩', 32, 32); const t = new THREE.CanvasTexture(c); const m = new THREE.SpriteMaterial({ map: t, transparent: true }); const b = new THREE.Sprite(m); b.position.copy(p); b.scale.set(2, 2, 1); b.userData = { direction: d.normalize(), speed: GAME_CONFIG.bulletSpeed }; scene.add(b); bullets.push(b); playShootSound(); }
+
+        // ========================================
+        // イベントリスナーの設定
+        // ========================================
+        function setupEventListeners() {
+            // 【変更】タイトル画面のクリック/タップでゲーム開始
+            const titleScreen = document.getElementById('titleScreen');
+            titleScreen.addEventListener('click', startGame, { once: true }); // 一度だけ実行
+            titleScreen.addEventListener('touchstart', startGame, { once: true });
+
+            // ゲーム中のクリック/タップ
+            renderer.domElement.addEventListener('click', onPointerDown);
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                onPointerDown({ clientX: touch.clientX, clientY: touch.clientY });
+            });
+            
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onPointerDown(event) {
+            // ゲームが開始されていなければ何もしない
+            if (!isGameStarted) return;
+            createBullet(event.clientX, event.clientY);
+        }
+
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        
+        // ========================================
+        // ヒットストップ・各種演出（省略）
+        // ========================================
+        function triggerHitStop() { hitStopActive = true; const fG = new THREE.PlaneGeometry(100, 100); const fM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide }); const f = new THREE.Mesh(fG, fM); f.position.z = camera.position.z - 5; scene.add(f); const oCP = camera.position.clone(); const sI = 0.5; const sD = 800; let sT = 0; const sInt = setInterval(() => { sT += 20; if (sT < sD && hitStopActive) { camera.position.x = oCP.x + (Math.random() - 0.5) * sI; camera.position.y = oCP.y + (Math.random() - 0.5) * sI; camera.position.z = oCP.z + (Math.random() - 0.5) * sI * 0.5; } else { camera.position.copy(oCP); clearInterval(sInt); } }, 20); const fO = setInterval(() => { f.material.opacity -= 0.05; if (f.material.opacity <= 0) { scene.remove(f); clearInterval(fO); } }, 50); }
+        function createBossDestroyEffect(p) { for (let i = 0; i < 100; i++) { const s = Math.random() * 0.5 + 0.1; const g = new THREE.BoxGeometry(s, s, s); const e = new THREE.EdgesGeometry(g); const c = Math.random() > 0.5 ? 0xff0000 : (Math.random() > 0.5 ? 0x00BFFF : 0xcccccc); const m = new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 1 }); const f = new THREE.LineSegments(e, m); f.position.copy(p); f.position.x += (Math.random() - 0.5) * 5; f.position.y += (Math.random() - 0.5) * 5; f.position.z += (Math.random() - 0.5) * 5; f.userData = { velocity: new THREE.Vector3((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30), rotation: new THREE.Vector3(Math.random() * 20, Math.random() * 20, Math.random() * 20), lifetime: 3.0, age: 0 }; scene.add(f); particles.push(f); } for (let i = 0; i < 5; i++) { const rG = new THREE.TorusGeometry(2 + i * 2, 0.2, 8, 50); const rE = new THREE.EdgesGeometry(rG); const m = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 1 }); const r = new THREE.LineSegments(rE, m); r.position.copy(p); r.userData = { velocity: new THREE.Vector3(0, 0, 0), rotation: new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10), lifetime: 2.0, age: i * 0.1, scaleSpeed: 5 }; scene.add(r); particles.push(r); } }
+        function startEndingSequence() { ClearBGM.play(); const cM = document.createElement('div'); cM.style.position = 'absolute'; cM.style.top = '50%'; cM.style.left = '50%'; cM.style.transform = 'translate(-50%, -50%)'; cM.style.fontSize = '60px'; cM.style.color = '#FFD700'; cM.style.fontWeight = 'bold'; cM.style.textShadow = '0 0 20px rgba(255,215,0,0.8)'; cM.style.zIndex = '100'; cM.textContent = 'GAME CLEAR!'; document.body.appendChild(cM); const pRI = setInterval(() => { if (gameEnded) for (let i = 0; i < 5; i++) createFallingPoop(); }, 200); setTimeout(() => { clearInterval(pRI); }, 10000); }
+        function createFallingPoop() { const c = document.createElement('canvas'); c.width = 64; c.height = 64; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, 64, 64); ctx.font = '48px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💩', 32, 32); const t = new THREE.CanvasTexture(c); const m = new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 1 }); const p = new THREE.Sprite(m); p.position.set((Math.random() - 0.5) * 40, 20, -10 - Math.random() * 20); const s = 1 + Math.random() * 9; p.scale.set(s, s, 1); p.userData = { velocity: new THREE.Vector3((Math.random() - 0.5) * 2, -5 - Math.random() * 5, 0), rotationSpeed: Math.random() * 10 - 5, lifetime: 5.0, age: 0, isFallingPoop: true }; scene.add(p); particles.push(p); }
+
+        // ========================================
+        // アニメーションループ
+        // ========================================
+        function animate() {
+            requestAnimationFrame(animate);
+            let deltaTime = 1 / 60;
+            if (hitStopActive) { deltaTime *= 0.05; setTimeout(() => { hitStopActive = false; }, 800); }
+            gameTime += deltaTime;
+            if (!bossMode && !gameEnded) { const sI = getEnemySpawnInterval(score); enemySpawnTimer += deltaTime; if (enemySpawnTimer >= sI) { spawnEnemy(); enemySpawnTimer = 0; } }
+            updateStarField(deltaTime);
+            updateBullets(deltaTime);
+            updateEnemies(deltaTime);
+            updateBoss(deltaTime);
+            updateParticles(deltaTime);
+            checkCollisions();
+            updateDebugInfo();
+            renderer.render(scene, camera);
+        }
+
+        // ========================================
+        // 更新関数（省略）
+        // ========================================
+        function updateStarField(d) { stars.forEach(sF => { const p = sF.geometry.attributes.position.array; for (let i = 0; i < p.length; i += 3) { p[i + 2] += GAME_CONFIG.starSpeed; if (p[i + 2] > 5) p[i + 2] = -200; } sF.geometry.attributes.position.needsUpdate = true; }); }
+        function updateBullets(d) { for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; b.position.add(b.userData.direction.clone().multiplyScalar(b.userData.speed * d)); if (b.position.z < -100) { scene.remove(b); bullets.splice(i, 1); } } }
+        function updateEnemies(d) { for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; e.update(d, gameTime); if (e.position.z > 10) { scene.remove(e); enemies.splice(i, 1); } } }
+        function updateBoss(d) { if (boss && !gameEnded) boss.update(d, gameTime); }
+        function updateParticles(d) { for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.position.add(p.userData.velocity.clone().multiplyScalar(d)); if (p.userData.rotation) { p.rotation.x += p.userData.rotation.x * d; p.rotation.y += p.userData.rotation.y * d; p.rotation.z += p.userData.rotation.z * d; } if (p.userData.rotationSpeed) p.material.rotation += p.userData.rotationSpeed * d; p.userData.age += d; const lR = 1 - (p.userData.age / p.userData.lifetime); if (p.material) p.material.opacity = lR; if (p.isSprite) { if (!p.userData.isFallingPoop) p.scale.setScalar(lR * 0.5 + 0.5); } else if (p.userData.scaleSpeed) { const s = 1 + p.userData.age * p.userData.scaleSpeed; p.scale.set(s, s, s); } else { p.scale.setScalar(lR * 1.5); } if (p.userData.age >= p.userData.lifetime) { scene.remove(p); particles.splice(i, 1); } } }
+        function updateDebugInfo() { const dEl = document.getElementById('debug'); const mE = getMaxEnemies(score); const sI = getEnemySpawnInterval(score); if (boss) dEl.textContent = `BOSS HP: ${boss.health}/${boss.maxHealth} | Bullets: ${bullets.length}`; else dEl.textContent = `Enemies: ${enemies.length}/${mE} | Spawn: ${sI.toFixed(1)}s | Bullets: ${bullets.length}`; }
+
+        // ========================================
+        // ゲーム開始
+        // ========================================
+        init();
+    </script>
+</body>
+</html>
