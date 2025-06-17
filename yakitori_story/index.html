@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>今宵、一串を求めて</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #000;
+            font-family: 'Shippori Mincho', serif;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #game-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            max-width: 414px;
+            max-height: 896px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            overflow: hidden;
+        }
+        
+        #background {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: brightness(0.6) contrast(1.1);
+        }
+        
+        #background::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, 
+                rgba(0,0,0,0) 0%, 
+                rgba(0,0,0,0.2) 50%, 
+                rgba(0,0,0,0.8) 100%);
+        }
+        
+        #title-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(ellipse at center, #1a0a0a 0%, #000 100%);
+            z-index: 100;
+            opacity: 1;
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        #title-text {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF6347 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.5rem;
+            animation: titlePulse 4s ease-in-out infinite;
+            text-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        #title-text br {
+            display: block;
+            content: "";
+            margin-top: 0.2em;
+        }
+        
+        @keyframes titlePulse {
+            0%, 100% { 
+                transform: scale(1);
+                filter: brightness(1);
+            }
+            50% { 
+                transform: scale(1.05);
+                filter: brightness(1.2);
+            }
+        }
+        
+        #start-button {
+            margin-top: 60px;
+            padding: 18px 50px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            font-size: 1.1rem;
+            letter-spacing: 0.2rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #start-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        #start-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        #start-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(255, 215, 0, 0.3);
+            border-color: rgba(255, 215, 0, 0.5);
+        }
+        
+        .transition-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 90;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+        
+        .transition-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        #text-box {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            min-height: 220px;
+            background: linear-gradient(to top, 
+                rgba(0, 0, 0, 0.95) 0%, 
+                rgba(0, 0, 0, 0.8) 50%,
+                rgba(0, 0, 0, 0) 100%);
+            backdrop-filter: blur(20px);
+            padding: 40px 25px;
+            color: #fff;
+            font-size: 1.05rem;
+            line-height: 1.9;
+            z-index: 10;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        #text-content {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        #text-content.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        #choices {
+            position: absolute;
+            bottom: 250px;
+            width: 100%;
+            padding: 0 25px;
+            z-index: 20;
+        }
+        
+        .choice-button {
+            display: block;
+            width: 100%;
+            margin: 18px 0;
+            padding: 22px 25px;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.08) 0%, 
+                rgba(255, 255, 255, 0.03) 100%);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-size: 0.95rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 12px;
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+            animation: choiceSlideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .choice-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.1) 50%, 
+                transparent 100%);
+            transition: left 0.6s;
+        }
+        
+        .choice-button:hover::before {
+            left: 100%;
+        }
+        
+        .choice-button:nth-child(1) { animation-delay: 0.1s; }
+        .choice-button:nth-child(2) { animation-delay: 0.2s; }
+        .choice-button:nth-child(3) { animation-delay: 0.3s; }
+        
+        @keyframes choiceSlideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .choice-button:hover {
+            background: linear-gradient(135deg, 
+                rgba(255, 215, 0, 0.15) 0%, 
+                rgba(255, 140, 0, 0.1) 100%);
+            transform: translateX(8px);
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.2);
+            border-color: rgba(255, 215, 0, 0.3);
+        }
+        
+        #intro-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 40;
+            opacity: 0;
+            transition: opacity 1.5s ease;
+        }
+        
+        #intro-text {
+            position: absolute;
+            bottom: 80px;
+            left: 0;
+            right: 0;
+            padding: 40px 30px;
+            background: linear-gradient(to top, 
+                rgba(0, 0, 0, 0.9) 0%, 
+                rgba(0, 0, 0, 0.7) 50%,
+                rgba(0, 0, 0, 0) 100%);
+            backdrop-filter: blur(10px);
+        }
+        
+        #intro-content {
+            color: #fff;
+            font-size: 1.1rem;
+            line-height: 2;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        #intro-content.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        #result-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+            display: none;
+            z-index: 50;
+            overflow-y: auto;
+            padding: 60px 30px;
+        }
+        
+        .result-number {
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            margin-bottom: 20px;
+            opacity: 0;
+            transform: scale(0.5);
+            animation: resultNumberIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+        }
+        
+        @keyframes resultNumberIn {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        #result-title {
+            font-size: 2rem;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 40px;
+            letter-spacing: 0.15rem;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: resultSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
+        }
+        
+        @keyframes resultSlideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        #result-description {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 2;
+            font-size: 1.05rem;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.05) 0%, 
+                rgba(255, 255, 255, 0.02) 100%);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 40px;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: resultSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.7s forwards;
+        }
+        
+        #replay-button {
+            display: block;
+            margin: 0 auto;
+            padding: 18px 50px;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            border: none;
+            color: #000;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.15rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50px;
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: resultSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.9s forwards;
+        }
+        
+        #replay-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(255, 215, 0, 0.5);
+        }
+        
+        .fade-out {
+            opacity: 0 !important;
+            transform: scale(0.95) !important;
+        }
+        
+        .click-hint {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.85rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="background"></div>
+        <div class="transition-overlay"></div>
+        
+        <div id="title-screen">
+            <h1 id="title-text">今宵<br>一串を求めて</h1>
+            <button id="start-button">始める</button>
+        </div>
+        
+        <div id="text-box" style="display: none;">
+            <div id="text-content"></div>
+            <div class="click-hint">▼ タップで進む</div>
+        </div>
+        
+        <div id="choices" style="display: none;"></div>
+        
+        <div id="intro-screen">
+            <div id="intro-text">
+                <div id="intro-content"></div>
+            </div>
+        </div>
+        
+        <div id="result-screen">
+            <div class="result-number">01</div>
+            <h2 id="result-title"></h2>
+            <div id="result-description"></div>
+            <button id="replay-button">もう一度プレイ</button>
+        </div>
+        
+        <audio id="bgm-novel" src="audio/yakitori_story.mp3" loop></audio>
+        <audio id="bgm-result" src="audio/yakitori_theme.mp3" loop></audio>
+        <audio id="se-choice" src="audio/choice.mp3"></audio>
+        <audio id="se-clear" src="audio/clear.mp3"></audio>
+    </div>
+
+    <script>
+        const gameData = {
+            scenes: {
+                opening: {
+                    background: 'images/yakitori1.jpeg',
+                    texts: [
+                        'カツ、カツ、と自分の革靴の音だけがやけに響く。',
+                        'ビルの谷間を吹き抜ける風は、少しだけ湿り気を帯びていた。',
+                        'やりきった仕事の達成感と、心地よい疲労感。まっすぐ帰路につくには、少しだけ名残惜しい夜。',
+                        'ふと、鼻先をくすぐる香ばしい匂いに、足が止まる。'
+                    ],
+                    nextScene: 'opening2'
+                },
+                opening2: {
+                    background: 'images/yakitori2.jpeg',
+                    texts: [
+                        '炭が爆ぜる音。脂が落ちて立ち上る煙。',
+                        '――焼き鳥。',
+                        'その言葉が頭に浮かんだ瞬間、今日の締めくくりは決まったようなものだった。',
+                        'ありふれたチェーン店じゃない。今夜のこの気分に寄り添ってくれるような、特別な一串に出会いたい。',
+                        'スマートフォンを取り出し、地図アプリを開く。無数の光点が、この街の美食を示していた。',
+                        'さて、どんな店に行こうか。今夜の自分は、何を求めているんだろう。'
+                    ],
+                    choices: [
+                        { text: '静かな隠れ家で、じっくりと自分と向き合うような時間を過ごしたい。', next: 'branchA' },
+                        { text: '話題の店や新しいスタイルで、心躍るような体験をしたい。', next: 'branchB' },
+                        { text: 'とにかく最高峰の味を。職人の技と情熱が凝縮された一串を堪能したい。', next: 'branchC' }
+                    ]
+                },
+                branchA: {
+                    background: 'images/yakitori3.jpeg',
+                    texts: [
+                        'ネオンの喧騒から一歩離れ、静かな路地へと足を踏み入れる。',
+                        '求めているのは、過剰な装飾や賑やかさじゃない。ただ、本物だけが持つ落ち着いた空気がそこにあればいい。',
+                        '隠れ家、と言っても色々ある。どんな静けさに、今夜は身を委ねようか。'
+                    ],
+                    choices: [
+                        { text: 'まるで秘密の場所を見つけたような、特別感がほしい。少しずつ、色々な味をつまむように楽しめたら最高だ。', result: 1 },
+                        { text: '駅近の利便性も捨てがたいが、一歩入れば別世界。幻の鶏とワインが待つ、洗練された大人の空間がいい。', result: 2 },
+                        { text: '確かな技術に裏打ちされた、本物の味に触れたい。高名な店から受け継がれた、その魂を感じてみたい。', result: 4 }
+                    ]
+                },
+                branchB: {
+                    background: 'images/yakitori4.jpeg',
+                    texts: [
+                        'せっかくの夜だ。ありきたりな選択肢は選びたくない。',
+                        '記憶の片隅に残り続けるような、何か「プラスアルファ」のある体験がしたい。',
+                        '伝統はもちろん素晴らしい。でも、革新の気風に触れてみるのも悪くない。'
+                    ],
+                    choices: [
+                        { text: '焼き鳥を「ディナー」として。ボリュームもあって、スタイリッシュな空間で満足感に浸りたい。', result: 5 },
+                        { text: 'ワインとの出会いを重視したい。気取らず、でも本格的な味を、手頃に楽しめるのが理想だ。', result: 6 },
+                        { text: '新しい才能に惹かれる。伝統に敬意を払いつつ、香味野菜などで新しい風を吹き込むような、個性的な一串がいい。', result: 8 }
+                    ]
+                },
+                branchC: {
+                    background: 'images/yakitori5.jpeg',
+                    texts: [
+                        '今夜は妥協したくない。食の探求者たちが賞賛を送るような、本物の中の本物を味わいたい。',
+                        'そのためなら、どんな扉でも開けてみせる。',
+                        '舌の記憶に、そして心の記憶に、深く刻まれるような一串を求めて。'
+                    ],
+                    choices: [
+                        { text: '一度は訪れたいと願われた伝説。移転してもなお人を惹きつける、ここでしか味わえない希少な部位に興味がある。', result: 3 },
+                        { text: '食通たちが認めた確かな実力。様々な鶏の個性を知り尽くした店主が選ぶ、お酒とのペアリングも楽しみたい。', result: 7 },
+                        { text: '目指すは、焼き鳥の頂。世界が初めて認めた究極の一串を、「鶏懐石」という芸術の域で体験してみたい。', result: 9 }
+                    ]
+                }
+            },
+            results: {
+                1: {
+                    background: 'images/result1.jpeg',
+                    title: '看板のない隠れ家',
+                    intro: '地図が示すのは、雑居ビルの狭間。看板は見当たらない。本当にここで合っているのか、不安になるほどだ。\n\nだが、その控えめな扉から漏れる光には、確かな品格が宿っていた。\n\n扉に手をかける。カチャリ、と静かな音がして、目の前に広がるのは一枚板の美しいカウンター。ここなら、今夜求めていた時間が過ごせそうだ。',
+                    description: '看板のない隠れ家のような雰囲気が特徴のお店です。\n\n店内は一枚板のカウンターが印象的で、落ち着いた大人の空間が広がっています。焼き鳥は一口サイズのピンチョススタイルで提供され、様々な部位を少しずつ楽しむことができます。このスタイルは特に女性に人気で、デートや接待にも利用されています。'
+                },
+                2: {
+                    background: 'images/result2.jpeg',
+                    title: '幻の地鶏と洗練された空間',
+                    intro: '駅前の喧騒が嘘のような、静かな一角にその店はあった。\n\nガラス張りのファサードから覗く店内は、柔らかな光に満ちている。外の喧騒を遮断する、まるで結界のような静けさだ。\n\n幻の地鶏、希少部位、ソムリエが選ぶワイン…。扉の向こうには、極上の時間が約束されている。',
+                    description: '駅からすぐという好立地にありながら、大人の隠れ家的な雰囲気を持つお店です。\n\n特定の契約養鶏場で育てられた幻の地鶏を使用しており、その希少部位まで味わえるのが大きな特徴です。鶏肉は最も良い状態のものを選別し、部位ごとに雌雄を使い分けるというこだわりようです。ソムリエがセレクトしたワインと共に、上質な焼き鳥コースを楽しめます。'
+                },
+                3: {
+                    background: 'images/result3.jpeg',
+                    title: '移転しても変わらぬ伝説',
+                    intro: '移転したばかりだというのに、その場所には既に伝説の風格が漂っていた。\n\nミニマルで洗練された和モダンの空間。予約困難な名店で修行を積んだ店主が、紀州備長炭と向き合う姿が目に浮かぶようだ。\n\n「おまかせコースのみ」。その潔さに、これから始まる美食への期待が最高潮に高まる。',
+                    description: 'かつて別の場所で人気を博し、移転を経て2024年7月に再スタートを切った焼き鳥の名店です。\n\n店主は、予約困難な名店として知られる店で修行を積んだ経歴を持ちます。「そろばん（首肉）」や「おたふく（リンパ腺）」といった他では珍しい希少部位を、紀州備長炭で丁寧に焼き上げて提供しています。メニューはおまかせコースのみで、落ち着いた和モダンの空間でゆっくりと食事を堪能できます。'
+                },
+                4: {
+                    background: 'images/result4.jpeg',
+                    title: '暖簾分けされた本格派',
+                    intro: 'ある高名な店から暖簾分けされた、という事実に強く惹かれた。\n\nそれは、単なる模倣ではない。師への敬意と、自らの哲学が融合した、新しい伝統の始まりの場所に違いない。\n\n重厚な木の扉を開ける。炭の香りと、凛とした空気。今夜は、本物の味にどっぷりと浸ろう。',
+                    description: 'ある高名な焼き鳥店から暖簾分けされた本格的なお店です。\n\n特定のブランド地鶏を使用し、紀州備長炭でじっくりと焼き上げることで、素材本来の旨味と香ばしさを最大限に引き出しています。落ち着いた雰囲気の店内では、焼き鳥と相性の良い日本酒やワインも豊富に取り揃えられています。'
+                },
+                5: {
+                    background: 'images/result5.jpeg',
+                    title: 'ディナーとしての焼き鳥',
+                    intro: '目の前に現れたのは、焼き鳥屋のイメージを覆すスタイリッシュな空間。あるいは、歴史ある駅舎に溶け込む隠れ家のような佇まい。\n\nどちらの扉を選んだとしても、そこには新しい焼き鳥の楽しみ方があるはずだ。\n\n大ぶりでジューシーな串を頬張る、ディナーとしての焼き鳥。想像しただけで、口の中にじゅわりと旨味が広がる。',
+                    description: 'ディナーとして楽しめる新感覚の焼き鳥店です。\n\n本店はオシャレな街にあり、支店は歴史ある主要な駅の建物内にあります。串物は全体的に大ぶりで食べ応えがあり、ジューシーな肉質が特徴です。素材の味を活かすため、味付けは薄めにされています。本店はスタイリッシュで落ち着いた空間で、接待などにも利用されます。駅の支店は、赤レンガの駅舎の中にあり、都会の喧騒を忘れさせる隠れ家的な雰囲気です。'
+                },
+                6: {
+                    background: 'images/result6.jpeg',
+                    title: '焼鳥×ワインの新境地',
+                    intro: '焼き鳥界の巨匠のDNAを受け継ぎつつ、独自の個性を加えたという店主。\n\n「焼鳥×ワイン」というコンセプトが、今日の気分にぴったりだった。\n\n扉を開けると、活気がありながらも居心地の良い空間が広がる。ソムリエでもある店主が選ぶ一本と共に、今宵の物語を始めよう。',
+                    description: '焼き鳥界で非常に著名な店で腕を磨いた店主が営む人気店です。\n\n師匠の店のスタイルを継承しつつも、独自の個性を加えた焼き鳥を提供しています。扱う鶏は伊達鶏で、部位ごとに串打ちのサイズを変えるなどのこだわりが見られます。「焼鳥×ワイン」をコンセプトに掲げ、ソムリエでもある店主が厳選したワインを手頃な価格で楽しめます。'
+                },
+                7: {
+                    background: 'images/result7.jpeg',
+                    title: 'ビブグルマンの実力店',
+                    intro: 'グルメガイドで2年連続ビブグルマンに選出されたという実績は、信頼の証。\n\n最大の特徴は、部位ごとに最適な産地の鶏を使い分けるという、底知れぬ探求心だ。\n\n店主の故郷の食材、そして厳選されたお酒とのペアリング。これは単なる食事ではない、一つの作品を味わうような体験になるだろう。',
+                    description: '2年連続で著名なグルメガイドのビブグルマンに選出された実力店です。\n\n使用する鶏の銘柄が非常に多く、部位ごとに最適な産地の鶏を使い分けているのが特徴です。店主の故郷の食材を取り入れた料理や、ソムリエと酒ディプロマの資格を持つ店主が厳選したワインや日本酒とのペアリングも楽しめます。'
+                },
+                8: {
+                    background: 'images/result8.jpeg',
+                    title: '新世代の才能',
+                    intro: '駅からわずか30秒。そのアクセスの良さとは裏腹に、店は落ち着いたオーラを放っていた。\n\n弟さんが焼き、お姉さんが飲み物を選ぶ。その温かな関係性が、きっとこの店の心地よい空気を作っているのだろう。\n\n九条ネギや葉ニンニクといった香味野菜を使った、上品で新しい一串。その繊細な味わいに期待が膨らむ。',
+                    description: '駅から徒歩30秒というアクセスしやすい場所にありながら、本格的な焼き鳥とワインのマリアージュが楽しめるお店です。\n\n2022年にオープンした比較的新しいお店で、弟さんが焼き鳥を、お姉さんがドリンクを担当しています。串打ちに独自性があり、九条ネギや葉ニンニクといった香味野菜を効果的に使用しているのが特徴です。塩気は控えめで、鶏本来の味を活かした上品な味わいが楽しめます。'
+                },
+                9: {
+                    background: 'images/result9.jpeg',
+                    title: '世界が認めた至高の一串',
+                    intro: 'ついに、たどり着いた。焼き鳥業界で世界初のミシュラン一つ星を獲得した、伝説の店。\n\nL字のカウンターのみという舞台で、店主が繰り広げるのは、高温で一気に焼き上げるという唯一無二の技。\n\nこれはもはや、焼き鳥ではない。「鶏懐石」という名の芸術だ。世界中のゲストを魅了するその理由を、今夜、この舌で確かめる。',
+                    description: '2010年に焼き鳥業界で世界で初めてミシュラン一つ星を獲得した、界隈を代表する名店です。\n\nL字型のカウンター席のみの店内で、店主が紀州備長炭を使い、高温で一気に焼き上げる独自の調理法で絶品の焼き鳥を提供します。厳選された国産地鶏と旬の野菜を使った「鶏懐石」のコースは、国内外のゲストからも高い評価を得ています。'
+                }
+            }
+        };
+
+        let currentScene = 'opening';
+        let textIndex = 0;
+        let isTyping = false;
+        let bgmNovel, bgmResult, seChoice, seClear;
+        const transitionOverlay = document.querySelector('.transition-overlay');
+
+        // Initialize audio
+        function initAudio() {
+            bgmNovel = document.getElementById('bgm-novel');
+            bgmResult = document.getElementById('bgm-result');
+            seChoice = document.getElementById('se-choice');
+            seClear = document.getElementById('se-clear');
+            
+            // Set volume
+            if (bgmNovel) bgmNovel.volume = 0.3;
+            if (bgmResult) bgmResult.volume = 0.3;
+            if (seChoice) seChoice.volume = 0.5;
+            if (seClear) seClear.volume = 0.5;
+        }
+
+        // Transition effect
+        async function transition(callback) {
+            transitionOverlay.classList.add('active');
+            await sleep(800);
+            if (callback) callback();
+            await sleep(500);
+            transitionOverlay.classList.remove('active');
+        }
+
+        // Sleep function
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Start game
+        document.getElementById('start-button').addEventListener('click', async () => {
+            initAudio();
+            document.getElementById('title-screen').classList.add('fade-out');
+            await sleep(1500);
+            
+            await transition(() => {
+                document.getElementById('title-screen').style.display = 'none';
+                document.getElementById('text-box').style.display = 'block';
+                if (bgmNovel) bgmNovel.play().catch(e => console.log('BGM play failed:', e));
+            });
+            
+            showScene(currentScene);
+        });
+
+        // Show scene
+        async function showScene(sceneName) {
+            const scene = gameData.scenes[sceneName];
+            currentScene = sceneName;
+            textIndex = 0;
+            
+            await transition(() => {
+                // Change background
+                const bg = document.getElementById('background');
+                bg.style.backgroundImage = `url('${scene.background}')`;
+                
+                // Hide choices
+                document.getElementById('choices').style.display = 'none';
+                document.getElementById('choices').innerHTML = '';
+            });
+            
+            // Show first text
+            await sleep(500);
+            showText();
+        }
+
+        // Show text with effect
+        async function showText() {
+            const scene = gameData.scenes[currentScene];
+            if (textIndex >= scene.texts.length) {
+                if (scene.choices) {
+                    await sleep(1000);
+                    showChoices(scene.choices);
+                } else if (scene.nextScene) {
+                    await sleep(1500);
+                    showScene(scene.nextScene);
+                }
+                return;
+            }
+            
+            const textContent = document.getElementById('text-content');
+            const text = scene.texts[textIndex];
+            
+            textContent.classList.remove('show');
+            await sleep(300);
+            
+            textContent.textContent = text;
+            textContent.classList.add('show');
+            
+            textIndex++;
+            isTyping = false;
+        }
+
+        // Show choices
+        function showChoices(choices) {
+            const choicesContainer = document.getElementById('choices');
+            choicesContainer.style.display = 'block';
+            
+            choices.forEach((choice, index) => {
+                const button = document.createElement('button');
+                button.className = 'choice-button';
+                button.textContent = choice.text;
+                button.addEventListener('click', async () => {
+                    if (seChoice) seChoice.play().catch(e => console.log('SE play failed:', e));
+                    
+                    if (choice.result) {
+                        await sleep(500);
+                        showIntro(choice.result);
+                    } else {
+                        showScene(choice.next);
+                    }
+                });
+                choicesContainer.appendChild(button);
+            });
+        }
+
+        // Show intro before result
+        async function showIntro(resultId) {
+            const result = gameData.results[resultId];
+            
+            await transition(() => {
+                document.getElementById('text-box').style.display = 'none';
+                document.getElementById('choices').style.display = 'none';
+                
+                // Set background for result
+                const bg = document.getElementById('background');
+                bg.style.backgroundImage = `url('${result.background || "images/result" + resultId + ".jpeg"}')`;
+                
+                // Show intro screen
+                const introScreen = document.getElementById('intro-screen');
+                const introContent = document.getElementById('intro-content');
+                
+                introScreen.style.display = 'block';
+                introContent.textContent = result.intro;
+            });
+            
+            await sleep(500);
+            document.getElementById('intro-screen').style.opacity = '1';
+            document.getElementById('intro-content').classList.add('show');
+            
+            // Wait for user to read intro
+            await sleep(5000);
+            
+            // Transition to result
+            showResult(resultId);
+        }
+
+        // Show result
+        async function showResult(resultId) {
+            const result = gameData.results[resultId];
+            
+            // Stop novel BGM and play result BGM
+            if (bgmNovel) bgmNovel.pause();
+            if (bgmResult) bgmResult.play().catch(e => console.log('BGM play failed:', e));
+            if (seClear) seClear.play().catch(e => console.log('SE play failed:', e));
+            
+            await transition(() => {
+                // Hide intro screen
+                document.getElementById('intro-screen').style.display = 'none';
+                
+                // Show result screen
+                const resultScreen = document.getElementById('result-screen');
+                document.querySelector('.result-number').textContent = `0${resultId}`;
+                document.getElementById('result-title').textContent = result.title;
+                document.getElementById('result-description').innerHTML = 
+                    result.description.replace(/\n/g, '<br>');
+                
+                resultScreen.style.display = 'block';
+            });
+        }
+
+        // Replay
+        document.getElementById('replay-button').addEventListener('click', () => {
+            if (bgmResult) bgmResult.pause();
+            location.reload();
+        });
+
+        // Click to advance text
+        document.getElementById('text-box').addEventListener('click', () => {
+            if (!isTyping && gameData.scenes[currentScene]) {
+                showText();
+            }
+        });
+    </script>
+</body>
+</html>
